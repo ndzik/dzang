@@ -7,74 +7,72 @@ import           Data.Bifunctor                 ( first )
 import           Data.Char
 import           Data.Functor                   ( (<&>) )
 
-newtype Parser a = Parser { parse :: String -> [(a, String)] }
+-- TODO: Extending the parser by processing something like a `ParseResult`
+-- which can encode failure states to backpropagate the parsing is advisable.
 
--- runParser runs the given parser on the given `String` stream and returns the
--- result, effectively unwrapping whatever is contained in it.
+-- A `Parser` is a function from `String`s to things `a` and `String`s.
+newtype Parser a = Parser { parse :: String -> [(a,String)] }
+
+-- runParser runs the given parser on the given input and returns the result.
 runParser :: Parser a -> String -> a
-runParser m s = case parse m s of
-  [(res, [] )] -> res
-  [(_  , _rs)] -> error "Parser did not consume entire stream"
-  _            -> error "Unexpected parser error"
-
--- char parses a single `Char` from the stream.
-char :: Parser Char
-char = Parser $ \case
-  []        -> []
-  (c : trs) -> [(c, trs)]
-
-bind :: Parser a -> (a -> Parser b) -> Parser b
-bind p f = Parser $ \s -> join . map (\(a, s') -> parse (f a) s') $ parse p s
-
-unit :: a -> Parser a
-unit a = Parser $ \s -> [(a, s)]
+runParser p s = case parse p s of
+  [(a, [] )] -> a
+  [(_, _rs)] -> error "cannot consume whole stream"
+  _          -> error "parse error"
 
 instance Functor Parser where
-  fmap f (Parser p) = Parser $ \s -> map (first f) . p $ s
+  -- Parse with `Parser` p and map `f` over the results. Remember that a parse
+  -- operation might have multiple outcomes, which means we have to map over
+  -- every possible outcome.
+  fmap f p = Parser $ \s -> map (first f) $ parse p s
 
 instance Applicative Parser where
-  pure = unit
---  (Parser p) <*> (Parser q) =
---    Parser $ \s -> [ (f a, s2) | (f, s1) <- p s, (a, s2) <- q s1 ]
-  p <*> q = Parser $ parse p >=> (\(f, s1) -> parse q s1 <&> first f)
+  pure v = Parser $ \s -> [(v, s)]
+  (Parser p) <*> (Parser q) = Parser (p >=> \(f, s) -> map (first f) $ q s)
 
 instance Monad Parser where
-  p >>= q = p `bind` q
+  -- Binding a `Parser` to another `Parser` composes the second parse operation
+  -- over the result of the first parse operation, yielding a new `Parser`.
+  -- Alternative: Parser $ \s -> [ res | (a, s') <- p s, res <- parse (f a) s' ]
+  (Parser p) >>= f = Parser (p >=> \(a, s) -> parse (f a) s)
 
-failure :: Parser a
-failure = Parser $ const []
+-- With this foundation set, we can start defining some useful `Parser`s.
 
-combine :: Parser a -> Parser a -> Parser a
-combine p q = Parser $ \s -> parse p s ++ parse q s
-
-option :: Parser a -> Parser a -> Parser a
-option p q = Parser $ \s -> case parse p s of
-  [] -> parse q s -- first parse failed, use next option.
-  r  -> r
+-- char parses a single char from the stream.
+char :: Parser Char
+char = Parser $ \case
+  []       -> []
+  (c : rs) -> [(c, rs)]
 
 instance Alternative Parser where
-  empty = mzero
-  (<|>) = option
+  empty = Parser $ const []
+  p <|> q = Parser $ \s -> case parse p s of
+    []  -> parse q s
+    res -> res
 
-instance MonadPlus Parser where
-  mzero = failure
-  mplus = combine
+-- number parses a consecutive amount of digits and returns them as an
+-- `Integer`
+--  >>> Implementing the `Alternative` typeclass for our `Parser` allows us to
+--  use `many`, `some` and `<|>`, which is perfect for this use case.
+number :: Parser Integer
+number = many (satisfy isDigit) <&> read
 
-satisfy :: (Char -> Bool) -> Parser Char
-satisfy p = char >>= \c -> if p c then return c else mzero
+space :: Parser Char
+space = satisfy isSpace
 
-natural :: Parser Integer
-natural = read <$> some (satisfy isDigit)
-
-letter :: Char -> Parser Char
-letter c = satisfy (c ==)
-
-string :: String -> Parser String
-string []       = return []
-string (c : cs) = letter c >> string cs >> return (c : cs)
-
-oneOf :: [Char] -> Parser Char
-oneOf s = satisfy (`elem` s)
-
+-- spaces skips all upcoming spaces.
 spaces :: Parser String
-spaces = many $ oneOf " \n\r"
+spaces = many space
+
+-- satisfy uses the input predicate and returns the expected token when
+-- encountered.
+satisfy :: (Char -> Bool) -> Parser Char
+satisfy p = char >>= \c -> if p c then return c else empty
+
+separator :: Char -> Parser Char
+separator c = satisfy (c ==)
+
+optional :: Parser Char -> Parser Char
+optional p = Parser $ \s -> case parse p s of
+  []  -> [('x', s)]
+  res -> res
