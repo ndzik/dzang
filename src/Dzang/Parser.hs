@@ -7,9 +7,6 @@ import           Data.Bifunctor                 ( first )
 import           Data.Char
 import           Data.Functor                   ( (<&>) )
 
--- TODO: Extending the parser by processing something like a `ParseResult`
--- which can encode failure states to backpropagate the parsing is advisable.
-
 -- A `Parser` is a function from `String`s to things `a` and `String`s.
 newtype Parser a = Parser { parse :: String -> [(a,String)] }
 
