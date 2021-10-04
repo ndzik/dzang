@@ -17,6 +17,9 @@ runParser p s = case parse p s of
   [(_, _rs)] -> error "cannot consume whole stream"
   _          -> error "parse error"
 
+runParser' :: Parser a -> String -> [(a, String)]
+runParser' = parse
+
 instance Functor Parser where
   -- Parse with `Parser` p and map `f` over the results. Remember that a parse
   -- operation might have multiple outcomes, which means we have to map over
@@ -35,9 +38,9 @@ instance Monad Parser where
 
 -- With this foundation set, we can start defining some useful `Parser`s.
 
--- char parses a single char from the stream.
-char :: Parser Char
-char = Parser $ \case
+-- item parses a single char from the stream.
+item :: Parser Char
+item = Parser $ \case
   []       -> []
   (c : rs) -> [(c, rs)]
 
@@ -46,6 +49,11 @@ instance Alternative Parser where
   p <|> q = Parser $ \s -> case parse p s of
     []  -> parse q s
     res -> res
+
+-- Necessary for mtl usage.
+instance MonadPlus Parser where
+  mzero = empty
+  mplus = (<|>)
 
 -- number parses a consecutive amount of digits and returns them as an
 -- `Integer`
@@ -64,7 +72,7 @@ spaces = many space
 -- satisfy uses the input predicate and returns the expected token when
 -- encountered.
 satisfy :: (Char -> Bool) -> Parser Char
-satisfy p = char >>= \c -> if p c then return c else empty
+satisfy p = item >>= \c -> if p c then return c else empty
 
 separator :: Char -> Parser Char
 separator c = satisfy (c ==)

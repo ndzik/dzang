@@ -27,9 +27,11 @@ library
   hs-source-dirs:      src
   exposed-modules:     Dzang
                      , Dzang.Parser
+                     , Dzang.StatefulParser
                      , Dzang.Language
   build-depends:       text
                      , transformers
+                     , mtl
 
 executable dzang-exe
   import: shared
