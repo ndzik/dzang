@@ -1,14 +1,20 @@
 module Main where
 
-import           Control.Applicative
+import           Control.Exception
 import           Control.Monad
-import qualified Dzang.Parser                  as P
-import           Dzang.StatefulParser
+import           Data.Functor
+import           Dzang.Parser
 
-newtype Number = Number Integer
+data Number = Number Integer Integer
   deriving Show
 
 main :: IO ()
 main = forever $ do
   l <- getLine
-  print $ runParser (spaces *> number) l
+  res <- try
+    ( print
+    $ runParser (spaces $> Number <*> (number <* expect ',') <*> number) l
+    ) :: IO (Either SomeException ())
+  case res of
+    Left err -> print err
+    _ -> return ()
