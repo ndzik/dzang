@@ -21,7 +21,7 @@ data ParserState = ParserState
 
 type Parser a = StateT ParserState P.Parser a
 
-runParser :: Parser a -> String -> [((a, ParserState), String)]
+runParser :: Parser a -> String -> [P.ParserResult (a, ParserState)]
 runParser p s = let parser = runStateT p (ParserState 1 1) in P.parse parser s
 
 incCol :: ParserState -> ParserState
