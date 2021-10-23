@@ -18,7 +18,7 @@ extra-source-files:  CHANGELOG.md
 
 common shared
   default-language: Haskell2010
-  build-depends: base ^>=4.14.2.0
+  build-depends:    base >=4.14.0.0
   ghc-options:
     -Wall
 
@@ -26,12 +26,11 @@ library
   import: shared
   hs-source-dirs:      src
   exposed-modules:     Dzang
-                     , Dzang.Parser
-                     , Dzang.StatefulParser
                      , Dzang.Language
   build-depends:       text
                      , transformers
                      , mtl
+                     , dzarser
 
 executable dzang-exe
   import: shared
@@ -40,9 +39,9 @@ executable dzang-exe
   -- other-extensions:
   ghc-options:
     -threaded
-  build-depends:       base >=4.14 && <4.15
-                     , dzang
+  build-depends:       dzang
                      , text == 1.2.4.1
+                     , dzarser
   hs-source-dirs:      app
 
 test-suite dzang-test
@@ -56,7 +55,10 @@ test-suite dzang-test
                       -fno-warn-type-defaults
   other-modules:      Dzang.Test.ParserSpec
   build-depends:      hspec
+                    , hspec-expectations
+                    , hspec-expectations-pretty-diff
                     , dzang
+                    , dzarser
                     , template-haskell
                     , random >= 1.2.0
                     , text
