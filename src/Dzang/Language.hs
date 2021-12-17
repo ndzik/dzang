@@ -2,6 +2,7 @@
 module Dzang.Language where
 
 import           Control.Applicative            ( (<|>) )
+import           Data.Functor                   ( (<&>) )
 import           Dzarser.Parser
 import           Text.Printf
 
@@ -17,10 +18,16 @@ data Expression = Application Expression Expression
                 | Definition Name Expression
                   -- Do I want it to be possible to bind `Module`s to variables?
                 | Module Name [(Name, Expression)]
+                  -- Primitives
+                | Add Expression Expression
+                | Sub Expression Expression
+                | Mul Expression Expression
+                | Div Expression Expression
                 deriving (Eq)
 data Lit = LitInt Integer
          | LitBool Bool
          deriving (Show, Eq)
+data Operator = AddOp | SubOp | MulOp | DivOp deriving Show
 
 viewVars :: Expression -> [Name]
 viewVars (Lambda n e) = n : viewVars e
@@ -34,11 +41,15 @@ instance Show Expression where
   show (Application expr1 expr2) = show expr1 <> " " <> show expr2
   show l@(Lambda _ expr) =
     "λ" <> unwords (viewVars l) <> "." <> show (viewBody expr)
-  show (Variable n          ) = n
-  show (Literal  (LitInt  v)) = show v
-  show (Literal  (LitBool v)) = show v
-  show (Module     n m      ) = show $ "module " <> n <> " where\n" <> show m
-  show (Definition n expr   ) = show $ n <> " = " <> show expr
+  show (Variable n            ) = n
+  show (Literal  (LitInt  v)  ) = show v
+  show (Literal  (LitBool v)  ) = show v
+  show (Module     n     m    ) = show $ "module " <> n <> " where\n" <> show m
+  show (Definition n     expr ) = show $ n <> " = " <> show expr
+  show (Add        expr1 expr2) = show expr1 <> "+" <> show expr2
+  show (Sub        expr1 expr2) = show expr1 <> "-" <> show expr2
+  show (Mul        expr1 expr2) = show expr1 <> "*" <> show expr2
+  show (Div        expr1 expr2) = show expr1 <> "/" <> show expr2
 
 reserved :: [Name]
 reserved = ["module", "where"]
@@ -93,11 +104,33 @@ parseBool =
             )
         )
 
-parseExpr :: Parser Expression
-parseExpr =
-  parseLambda <|> parseLiteral <|> parseVariable <|> parseApp <|> parserFail
-    "expected either Lambda, Literal, Variable or Application"
+infixOps :: [Char]
+infixOps = ['+', '-', '/', '*']
 
+isInfixOp :: Char -> Parser Bool
+isInfixOp c = pure $ c `elem` infixOps
+
+parseExpr :: Parser Expression
+parseExpr = parseLVal >>= parseRVal
+
+parseLVal :: Parser Expression
+parseLVal = parseLambda <|> parseLiteral <|> parseVariable <|> parserFail
+  "expected either Lambda, Literal, Variable or Application"
+
+-- Conditional on `lval` being a lambda expression -> possible lambda
+-- application following.
+parseRVal :: Expression -> Parser Expression
+parseRVal lambda@(Lambda _ _) = peek >>= \case
+  Nothing -> return lambda
+  _ -> parseApp lambda
+parseRVal lval                = peek >>= \case
+  Nothing -> return lval
+  (Just c) ->
+    isInfixOp c
+      >>= (\case
+            True  -> parseMath lval
+            False -> return lval
+          )
 
 parseLambda :: Parser Expression
 parseLambda =
@@ -105,8 +138,16 @@ parseLambda =
     <$> (optional spaces *> expect 'λ' *> optional spaces *> name)
     <*> (optional spaces *> expect '.' *> optional spaces *> parseExpr)
 
-parseApp :: Parser Expression
-parseApp = undefined
+parseApp :: Expression -> Parser Expression
+parseApp lambda = Application lambda <$> (optional spaces *> parseExpr)
 
 parseVariable :: Parser Expression
 parseVariable = Variable <$> name
+
+parseMath :: Expression -> Parser Expression
+parseMath lval = item >>= \case
+  '+' -> parseExpr <&> Add lval
+  '-' -> parseExpr <&> Sub lval
+  '*' -> parseExpr <&> Mul lval
+  '/' -> parseExpr <&> Div lval
+  _   -> parserFail "parsing math expression"
