@@ -27,6 +27,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Dzang
                      , Dzang.Language
+                     , Dzang.Interpreter
   build-depends:       text
                      , transformers
                      , mtl

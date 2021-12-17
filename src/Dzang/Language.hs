@@ -38,9 +38,9 @@ viewBody (Lambda _ e) = viewBody e
 viewBody x            = x
 
 instance Show Expression where
-  show (Application expr1 expr2) = show expr1 <> " " <> show expr2
+  show (Application expr1 expr2) = "[" <>show expr1 <> " " <> show expr2 <> "]"
   show l@(Lambda _ expr) =
-    "λ" <> unwords (viewVars l) <> "." <> show (viewBody expr)
+    "(λ" <> unwords (viewVars l) <> "." <> show (viewBody expr) <> ")"
   show (Variable n            ) = n
   show (Literal  (LitInt  v)  ) = show v
   show (Literal  (LitBool v)  ) = show v
@@ -122,8 +122,8 @@ parseLVal = parseLambda <|> parseLiteral <|> parseVariable <|> parserFail
 parseRVal :: Expression -> Parser Expression
 parseRVal lambda@(Lambda _ _) = peek >>= \case
   Nothing -> return lambda
-  _ -> parseApp lambda
-parseRVal lval                = peek >>= \case
+  _       -> parseApp lambda
+parseRVal lval = peek >>= \case
   Nothing -> return lval
   (Just c) ->
     isInfixOp c
