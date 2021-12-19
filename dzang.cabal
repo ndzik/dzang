@@ -43,6 +43,7 @@ executable dzang-exe
   build-depends:       dzang
                      , text == 1.2.4.1
                      , dzarser
+                     , optparse-applicative
   hs-source-dirs:      app
 
 test-suite dzang-test
