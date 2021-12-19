@@ -6,4 +6,4 @@ module Dzang
 
 import           Dzang.Interpreter
 import           Dzang.Language
-import Dzarser.Parser
+import           Dzarser.Parser

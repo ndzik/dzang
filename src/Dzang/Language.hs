@@ -2,7 +2,7 @@
 module Dzang.Language where
 
 import           Control.Applicative            ( (<|>) )
-import           Data.Functor                   ( (<&>) )
+import           Data.List
 import           Dzarser.Parser
 import           Text.Printf
 
@@ -29,6 +29,15 @@ data Lit = LitInt Integer
          deriving (Show, Eq)
 data Operator = AddOp | SubOp | MulOp | DivOp deriving Show
 
+type OpStack = [Char]
+type OprandStack = [Expression]
+
+parseDzang :: String -> Expression
+parseDzang = runParser $ parseExpr Env { operators = [], operands = [] }
+
+debugDzang :: String -> [ParserResult Expression]
+debugDzang = debugParser $ parseExpr Env { operators = [], operands = [] }
+
 viewVars :: Expression -> [Name]
 viewVars (Lambda n e) = n : viewVars e
 viewVars _            = []
@@ -38,7 +47,8 @@ viewBody (Lambda _ e) = viewBody e
 viewBody x            = x
 
 instance Show Expression where
-  show (Application expr1 expr2) = "[" <>show expr1 <> " " <> show expr2 <> "]"
+  show (Application expr1 expr2) =
+    "[" <> show expr1 <> " " <> show expr2 <> "]"
   show l@(Lambda _ expr) =
     "(λ" <> unwords (viewVars l) <> "." <> show (viewBody expr) <> ")"
   show (Variable n            ) = n
@@ -46,10 +56,10 @@ instance Show Expression where
   show (Literal  (LitBool v)  ) = show v
   show (Module     n     m    ) = show $ "module " <> n <> " where\n" <> show m
   show (Definition n     expr ) = show $ n <> " = " <> show expr
-  show (Add        expr1 expr2) = show expr1 <> "+" <> show expr2
-  show (Sub        expr1 expr2) = show expr1 <> "-" <> show expr2
-  show (Mul        expr1 expr2) = show expr1 <> "*" <> show expr2
-  show (Div        expr1 expr2) = show expr1 <> "/" <> show expr2
+  show (Add        expr1 expr2) = "(" <> show expr1 <> "+" <> show expr2 <> ")"
+  show (Sub        expr1 expr2) = "(" <> show expr1 <> "-" <> show expr2 <> ")"
+  show (Mul        expr1 expr2) = "(" <> show expr1 <> "*" <> show expr2 <> ")"
+  show (Div        expr1 expr2) = "(" <> show expr1 <> "/" <> show expr2 <> ")"
 
 reserved :: [Name]
 reserved = ["module", "where"]
@@ -70,12 +80,12 @@ parseModule = name >>= \case
     res     -> parserFail
       $ printf "expecting 'where' to close module definition got: %s" res
 
-parseDef :: Parser Expression
-parseDef =
+parseDef :: Env -> Parser Expression
+parseDef env =
   Definition
     <$> name
     <*> (  (optional spaces *> parseBindDef <* optional spaces)
-        *> (parseLambda <|> parseLiteral)
+        *> (parseLambda env <|> parseLiteral)
         )
 
 parseBindDef :: Parser Char
@@ -104,50 +114,104 @@ parseBool =
             )
         )
 
-infixOps :: [Char]
-infixOps = ['+', '-', '/', '*']
+-- infixOps is a map of infix operators together with their precendence.
+infixOps :: [(Char, Int)]
+infixOps = [('+', 0), ('-', 0), ('/', 1), ('*', 1)]
+
+precedence :: Char -> Int
+precedence c = case find (\(op, _) -> c == op) infixOps of
+  Just (_, prec) -> prec
+  Nothing        -> error "unknown operator lookup"
 
 isInfixOp :: Char -> Parser Bool
-isInfixOp c = pure $ c `elem` infixOps
+isInfixOp c = case find (\(op, _) -> c == op) infixOps of
+  Nothing -> return False
+  _       -> return True
 
-parseExpr :: Parser Expression
-parseExpr = parseLVal >>= parseRVal
+data Env = Env
+  { operators :: OpStack
+  , operands  :: OprandStack
+  }
 
-parseLVal :: Parser Expression
-parseLVal = parseLambda <|> parseLiteral <|> parseVariable <|> parserFail
-  "expected either Lambda, Literal, Variable or Application"
+parseExpr :: Env -> Parser Expression
+parseExpr env = parseLVal env >>= parseRVal env
+
+parseLVal :: Env -> Parser Expression
+parseLVal env =
+  parseLambda env <|> parseLiteral <|> parseVariable <|> parserFail
+    "expected either Lambda, Literal, Variable or Application"
 
 -- Conditional on `lval` being a lambda expression -> possible lambda
 -- application following.
-parseRVal :: Expression -> Parser Expression
-parseRVal lambda@(Lambda _ _) = peek >>= \case
+parseRVal :: Env -> Expression -> Parser Expression
+parseRVal env lambda@(Lambda _ _) = peek >>= \case
   Nothing -> return lambda
-  _       -> parseApp lambda
-parseRVal lval = peek >>= \case
+  _       -> parseApp env lambda
+parseRVal env lval = peek >>= \case
   Nothing -> return lval
   (Just c) ->
     isInfixOp c
       >>= (\case
-            True  -> parseMath lval
+            True  -> parseOperator env lval
             False -> return lval
           )
 
-parseLambda :: Parser Expression
-parseLambda =
+parseLambda :: Env -> Parser Expression
+parseLambda env =
   Lambda
     <$> (optional spaces *> expect 'λ' *> optional spaces *> name)
-    <*> (optional spaces *> expect '.' *> optional spaces *> parseExpr)
+    <*> (optional spaces *> expect '.' *> optional spaces *> parseExpr env)
 
-parseApp :: Expression -> Parser Expression
-parseApp lambda = Application lambda <$> (optional spaces *> parseExpr)
+parseApp :: Env -> Expression -> Parser Expression
+parseApp env lambda = Application lambda <$> (optional spaces *> parseExpr env)
 
 parseVariable :: Parser Expression
 parseVariable = Variable <$> name
 
-parseMath :: Expression -> Parser Expression
-parseMath lval = item >>= \case
-  '+' -> parseExpr <&> Add lval
-  '-' -> parseExpr <&> Sub lval
-  '*' -> parseExpr <&> Mul lval
-  '/' -> parseExpr <&> Div lval
-  _   -> parserFail "parsing math expression"
+parseOperator :: Env -> Expression -> Parser Expression
+parseOperator env lval = go (operators env) (lval : operands env)
+ where
+  go :: OpStack -> OprandStack -> Parser Expression
+  go os ds@(_ : dd) = peek >>= \case
+    Nothing -> return $ mkTree os ds
+    Just op -> if precedence op < curPrec os
+      then return $ mkTree os ds
+      else
+        item
+        >>  parseExpr env { operators = op : operators env, operands = ds }
+        >>= \rval -> peek >>= \case -- abort stream consumption when no new operator is encountered!
+              Nothing -> return $ mkTree (op : os) (rval : ds)
+              Just c  -> isInfixOp c >>= \case
+                True  -> go os (rval : dd)
+                False -> return $ mkTree (op : os) (rval : ds)
+  go _ _ = parserFail "malformed input"
+
+-- Example: 1*2+3
+-- parseExpr [] [] 1*2+3 -> (Literal 1)
+--  parseOperator [] [] (Literal 1) *2+3
+--    go [] [Literal 1] *2+3
+--      parseExpr ['*'] [Literal 1] 2+3 -> Literal 2
+--        parseOperator ['*'] [Literal 1] +3
+--          go ['*'] [Literal 2, Literal 1] +3
+--            mkTree ['*'] [Literal 2, Literal 1] -> Mul 1 2
+--          Mul 1 2
+--        Mul 1 2
+--      go [] [Mul 1 2] +3
+--        parseExpr ['+'] [Mul 1 2] -> Literal 3
+--        mkTree ['+'] [Literal 3, Mul 1 2] -> Add (Mul 1 2) 3
+--      Add (Mul 1 2) 3
+--    Add (Mul 1 2) 3
+--  Add (Mul 1 2) 3
+-- Add (Mul 1 2) 3
+
+mkTree :: OpStack -> OprandStack -> Expression
+mkTree ('+' : _) (rhs : lhs : _) = Add lhs rhs
+mkTree ('-' : _) (rhs : lhs : _) = Sub lhs rhs
+mkTree ('*' : _) (rhs : lhs : _) = Mul lhs rhs
+mkTree ('/' : _) (rhs : lhs : _) = Div lhs rhs
+mkTree []        _               = error "no operator to make tree"
+mkTree _         _               = error "unsupported operator"
+
+curPrec :: OpStack -> Int
+curPrec []       = -1
+curPrec (op : _) = precedence op

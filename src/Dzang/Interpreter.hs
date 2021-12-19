@@ -2,7 +2,6 @@ module Dzang.Interpreter where
 
 import           Data.List
 import           Dzang.Language
-import           Dzarser.Parser
 
 data Value = VBool Bool
            | VInt Integer
@@ -17,7 +16,7 @@ evalEval :: String -> IO ()
 evalEval input = print $ runEval input
 
 runEval :: String -> Value
-runEval input = eval [] (runParser parseExpr input)
+runEval input = eval [] (parseDzang input)
 
 -- Interpreter evaluating simple expressions.
 eval :: Environment -> Expression -> Value
