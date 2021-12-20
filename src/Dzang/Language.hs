@@ -29,6 +29,10 @@ data Lit = LitInt Integer
          deriving (Show, Eq)
 data Operator = AddOp | SubOp | MulOp | DivOp deriving Show
 
+data Env = Env
+  { operators :: OpStack
+  , operands  :: OprandStack
+  }
 type OpStack = [Char]
 type OprandStack = [Expression]
 
@@ -123,15 +127,16 @@ precedence c = case find (\(op, _) -> c == op) infixOps of
   Just (_, prec) -> prec
   Nothing        -> error "unknown operator lookup"
 
-isInfixOp :: Char -> Parser Bool
+isInfixOp :: Char -> Bool
 isInfixOp c = case find (\(op, _) -> c == op) infixOps of
+  Nothing -> False
+  _       -> True
+
+isInfixOpM :: Char -> Parser Bool
+isInfixOpM c = case find (\(op, _) -> c == op) infixOps of
   Nothing -> return False
   _       -> return True
 
-data Env = Env
-  { operators :: OpStack
-  , operands  :: OprandStack
-  }
 
 parseExpr :: Env -> Parser Expression
 parseExpr env = parseLVal env >>= parseRVal env
@@ -147,14 +152,7 @@ parseRVal :: Env -> Expression -> Parser Expression
 parseRVal env lambda@(Lambda _ _) = peek >>= \case
   Nothing -> return lambda
   _       -> parseApp env lambda
-parseRVal env lval = peek >>= \case
-  Nothing -> return lval
-  (Just c) ->
-    isInfixOp c
-      >>= (\case
-            True  -> parseOperator env lval
-            False -> return lval
-          )
+parseRVal env lval = parseOperator env lval
 
 parseLambda :: Env -> Parser Expression
 parseLambda env =
@@ -168,49 +166,36 @@ parseApp env lambda = Application lambda <$> (optional spaces *> parseExpr env)
 parseVariable :: Parser Expression
 parseVariable = Variable <$> name
 
+-- TODO: Fix right-left associativity of operators.
 parseOperator :: Env -> Expression -> Parser Expression
-parseOperator env lval = go (operators env) (lval : operands env)
+parseOperator env = go (operators env) (operands env)
  where
-  go :: OpStack -> OprandStack -> Parser Expression
-  go os ds@(_ : dd) = peek >>= \case
-    Nothing -> return $ mkTree os ds
-    Just op -> if precedence op < curPrec os
-      then return $ mkTree os ds
-      else
-        item
-        >>  parseExpr env { operators = op : operators env, operands = ds }
-        >>= \rval -> peek >>= \case -- abort stream consumption when no new operator is encountered!
-              Nothing -> return $ mkTree (op : os) (rval : ds)
-              Just c  -> isInfixOp c >>= \case
-                True  -> go os (rval : dd)
-                False -> return $ mkTree (op : os) (rval : ds)
-  go _ _ = parserFail "malformed input"
+  go :: OpStack -> OprandStack -> Expression -> Parser Expression
+  go os ds lval = peek >>= \case
+    Nothing | null os && null ds -> return lval
+            | otherwise          -> mkTree os (lval : ds)
+    Just op
+      | not (isInfixOp op)
+      -> mkTree os (lval : ds)
+      | precedence op < curPrec os
+      -> mkTree os (lval : ds)
+      | otherwise
+      -> item
+        >>  parseExpr env { operators = op : operators env
+                          , operands  = lval : ds
+                          }
+        >>= \rval -> go os ds rval
 
--- Example: 1*2+3
--- parseExpr [] [] 1*2+3 -> (Literal 1)
---  parseOperator [] [] (Literal 1) *2+3
---    go [] [Literal 1] *2+3
---      parseExpr ['*'] [Literal 1] 2+3 -> Literal 2
---        parseOperator ['*'] [Literal 1] +3
---          go ['*'] [Literal 2, Literal 1] +3
---            mkTree ['*'] [Literal 2, Literal 1] -> Mul 1 2
---          Mul 1 2
---        Mul 1 2
---      go [] [Mul 1 2] +3
---        parseExpr ['+'] [Mul 1 2] -> Literal 3
---        mkTree ['+'] [Literal 3, Mul 1 2] -> Add (Mul 1 2) 3
---      Add (Mul 1 2) 3
---    Add (Mul 1 2) 3
---  Add (Mul 1 2) 3
--- Add (Mul 1 2) 3
-
-mkTree :: OpStack -> OprandStack -> Expression
-mkTree ('+' : _) (rhs : lhs : _) = Add lhs rhs
-mkTree ('-' : _) (rhs : lhs : _) = Sub lhs rhs
-mkTree ('*' : _) (rhs : lhs : _) = Mul lhs rhs
-mkTree ('/' : _) (rhs : lhs : _) = Div lhs rhs
-mkTree []        _               = error "no operator to make tree"
-mkTree _         _               = error "unsupported operator"
+-- mkTree receives an operator and operand stack. It makes an AST out of the
+-- operands using the topmost available operator.
+mkTree :: OpStack -> OprandStack -> Parser Expression
+mkTree ('+' : _) (rhs : lhs : _) = return $ Add lhs rhs
+mkTree ('-' : _) (rhs : lhs : _) = return $ Sub lhs rhs
+mkTree ('*' : _) (rhs : lhs : _) = return $ Mul lhs rhs
+mkTree ('/' : _) (rhs : lhs : _) = return $ Div lhs rhs
+mkTree []        [expr         ] = return expr
+mkTree []        _               = parserFail "no operator to make tree"
+mkTree _         _               = parserFail "unsupported operator"
 
 curPrec :: OpStack -> Int
 curPrec []       = -1
