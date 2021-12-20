@@ -5,6 +5,7 @@ import           Dzang.Language
 
 data Value = VBool Bool
            | VInt Integer
+           deriving (Eq)
 
 instance Show Value where
   show (VBool b) = show b

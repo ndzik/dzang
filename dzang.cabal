@@ -56,6 +56,7 @@ test-suite dzang-test
                       -with-rtsopts=-N
                       -fno-warn-type-defaults
   other-modules:      Dzang.Test.ParserSpec
+                    , Dzang.Test.InterpreterSpec
   build-depends:      hspec
                     , hspec-expectations
                     , hspec-expectations-pretty-diff
