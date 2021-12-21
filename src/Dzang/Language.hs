@@ -119,24 +119,28 @@ parseBool =
         )
 
 -- infixOps is a map of infix operators together with their precendence.
-infixOps :: [(Char, Int)]
-infixOps = [('+', 0), ('-', 0), ('/', 1), ('*', 1)]
+infixOps :: [(Char, Int, Bool)]
+infixOps = [('+', 0, False), ('-', 0, True), ('/', 1, True), ('*', 1, False)]
 
 precedence :: Char -> Int
-precedence c = case find (\(op, _) -> c == op) infixOps of
-  Just (_, prec) -> prec
-  Nothing        -> error "unknown operator lookup"
+precedence c = case find (\(op, _, _) -> c == op) infixOps of
+  Just (_, prec, _) -> prec
+  Nothing           -> error "unknown operator lookup"
 
 isInfixOp :: Char -> Bool
-isInfixOp c = case find (\(op, _) -> c == op) infixOps of
+isInfixOp c = case find (\(op, _, _) -> c == op) infixOps of
   Nothing -> False
   _       -> True
 
 isInfixOpM :: Char -> Parser Bool
-isInfixOpM c = case find (\(op, _) -> c == op) infixOps of
+isInfixOpM c = case find (\(op, _, _) -> c == op) infixOps of
   Nothing -> return False
   _       -> return True
 
+isLeftAssoc :: Char -> Bool
+isLeftAssoc c = case find (\(op, _, _) -> c == op) infixOps of
+  Nothing            -> error "unknown operator lookup"
+  Just (_, _, assoc) -> assoc
 
 parseExpr :: Env -> Parser Expression
 parseExpr env = parseLVal env >>= parseRVal env
@@ -166,25 +170,21 @@ parseApp env lambda = Application lambda <$> (optional spaces *> parseExpr env)
 parseVariable :: Parser Expression
 parseVariable = Variable <$> name
 
--- TODO: Fix right-left associativity of operators.
 parseOperator :: Env -> Expression -> Parser Expression
-parseOperator env = go (operators env) (operands env)
- where
-  go :: OpStack -> OprandStack -> Expression -> Parser Expression
-  go os ds lval = peek >>= \case
-    Nothing | null os && null ds -> return lval
-            | otherwise          -> mkTree os (lval : ds)
-    Just op
-      | not (isInfixOp op)
-      -> mkTree os (lval : ds)
-      | precedence op < curPrec os
-      -> mkTree os (lval : ds)
-      | otherwise
-      -> item
-        >>  parseExpr env { operators = op : operators env
-                          , operands  = lval : ds
-                          }
-        >>= \rval -> go os ds rval
+parseOperator env@(Env os ds) lval = peek >>= \case
+  Nothing | null os && null ds -> return lval
+          | otherwise          -> mkTree os (lval : ds)
+  Just op
+    | not (isInfixOp op)
+    -> mkTree os (lval : ds)
+    | precedence op <  curPrec os
+    -> mkTree os (lval : ds)
+    | (precedence op == curPrec os && (isLeftAssoc op || curAssocLeft os))
+    -> mkTree os (lval : ds)
+    | otherwise
+    -> item
+      >>  parseExpr env { operators = op : operators env, operands = lval : ds }
+      >>= \rval -> parseOperator env { operators = os, operands = ds } rval
 
 -- mkTree receives an operator and operand stack. It makes an AST out of the
 -- operands using the topmost available operator.
@@ -200,3 +200,7 @@ mkTree _         _               = parserFail "unsupported operator"
 curPrec :: OpStack -> Int
 curPrec []       = -1
 curPrec (op : _) = precedence op
+
+curAssocLeft :: OpStack -> Bool
+curAssocLeft [] = False
+curAssocLeft (op:_) = isLeftAssoc op
