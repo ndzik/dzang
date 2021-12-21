@@ -27,6 +27,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Dzang
                      , Dzang.Language
+                     , Dzang.Interpreter
   build-depends:       text
                      , transformers
                      , mtl
@@ -42,6 +43,7 @@ executable dzang-exe
   build-depends:       dzang
                      , text == 1.2.4.1
                      , dzarser
+                     , optparse-applicative
   hs-source-dirs:      app
 
 test-suite dzang-test
@@ -54,6 +56,7 @@ test-suite dzang-test
                       -with-rtsopts=-N
                       -fno-warn-type-defaults
   other-modules:      Dzang.Test.ParserSpec
+                    , Dzang.Test.InterpreterSpec
   build-depends:      hspec
                     , hspec-expectations
                     , hspec-expectations-pretty-diff
