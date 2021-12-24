@@ -28,6 +28,7 @@ library
   exposed-modules:     Dzang
                      , Dzang.Language
                      , Dzang.Interpreter
+                     , Dzang.TypeChecker
   build-depends:       text
                      , transformers
                      , mtl
@@ -57,6 +58,7 @@ test-suite dzang-test
                       -fno-warn-type-defaults
   other-modules:      Dzang.Test.ParserSpec
                     , Dzang.Test.InterpreterSpec
+                    , Dzang.Test.TypeCheckerSpec
   build-depends:      hspec
                     , hspec-expectations
                     , hspec-expectations-pretty-diff

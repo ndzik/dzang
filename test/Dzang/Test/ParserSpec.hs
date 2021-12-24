@@ -73,18 +73,17 @@ testComplexMath = do
     (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
     [ ( "2*3-4+5-6+x"
       , Add
-          (Sub
-            (Add
-              (Sub (Mul (Literal (LitInt 2)) (Literal (LitInt 3)))
-                   (Literal (LitInt 4))
-              )
-
-              (Literal (LitInt 5))
+        (Sub
+          (Add
+            (Sub (Mul (Literal (LitInt 2)) (Literal (LitInt 3)))
+                 (Literal (LitInt 4))
             )
-            (Literal (LitInt 6))
+
+            (Literal (LitInt 5))
           )
-          (Variable "x")
-        
+          (Literal (LitInt 6))
+        )
+        (Variable "x")
       )
     , ( "λx.2*3-4+5-6+x 10"
       , Application

@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DataKinds #-}
 module Dzang.Language where
 
 import           Control.Applicative            ( (<|>) )
@@ -37,6 +38,8 @@ data Env = Env
   }
 type OpStack = [Char]
 type OprandStack = [Expression]
+type FuncStack = [Expression]
+type FuncBodyStack = [Expression]
 
 parseDzang :: String -> Expression
 parseDzang = runParser $ parseExpr emptyEnv
@@ -140,19 +143,17 @@ operatorsMap =
   ]
 
 precedence :: Char -> Int
-precedence c = case find (\(op, _, _) -> c == op) infixOps of
-  Just (_, prec, _) -> prec
-  Nothing           -> error "unknown operator lookup"
+precedence c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, prec, _, _) -> prec
+  Nothing              -> error "unknown operator lookup"
 
 isInfixOp :: Char -> Bool
-isInfixOp c = case find (\(op, _, _) -> c == op) infixOps of
-  Nothing -> False
-  _       -> True
+isInfixOp c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, _, _, Infix) -> True
+  _                     -> False
 
 isInfixOpM :: Char -> Parser Bool
-isInfixOpM c = case find (\(op, _, _) -> c == op) infixOps of
-  Nothing -> return False
-  _       -> return True
+isInfixOpM c = return $ isInfixOp c
 
 isOperator :: Char -> Bool
 isOperator c = case find (\(op, _, _, _) -> c == op) operatorsMap of
@@ -160,9 +161,9 @@ isOperator c = case find (\(op, _, _, _) -> c == op) operatorsMap of
   _      -> False
 
 isLeftAssoc :: Char -> Bool
-isLeftAssoc c = case find (\(op, _, _) -> c == op) infixOps of
-  Nothing            -> error "unknown operator lookup"
-  Just (_, _, assoc) -> assoc
+isLeftAssoc c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, _, LeftAssoc, _) -> True
+  _                         -> False
 
 isRightAssoc :: Char -> Bool
 isRightAssoc c = case find (\(op, _, _, _) -> c == op) operatorsMap of
@@ -232,5 +233,5 @@ curPrec []       = -1
 curPrec (op : _) = precedence op
 
 curAssocLeft :: OpStack -> Bool
-curAssocLeft [] = False
-curAssocLeft (op:_) = isLeftAssoc op
+curAssocLeft []       = False
+curAssocLeft (op : _) = isLeftAssoc op
