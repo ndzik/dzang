@@ -15,9 +15,10 @@ spec = do
   describe "Dzang Parser" $ do
     it "parses module declarations" testParseModules
     it "parses variables"           testParseVariables
-    it "parses lambdas"             testParseLambdas
+    it "parses lambdas" testParseLambdas
     it "parses definitions"         testParseDefinitions
     it "parses applications"        testParseApplications
+    it "parses brackets"            testParseBrackets
 
     describe "math expressions" testParseMath
 
@@ -38,18 +39,18 @@ testRightAssociativeOperators = do
   traverse_
     (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
     [ ( "1+2+3+4"
-      , Add
-        (Literal (LitInt 1))
-        (Add (Literal (LitInt 2))
-             (Add (Literal (LitInt 3)) (Literal (LitInt 4)))
-        )
+        , Add
+          (Add
+            (Add (Literal (LitInt 1)) (Literal (LitInt 2)))
+            (Literal (LitInt 3)))
+          (Literal (LitInt 4))
       )
     , ( "1*2*3*4"
-      , Mul
-        (Literal (LitInt 1))
-        (Mul (Literal (LitInt 2))
-             (Mul (Literal (LitInt 3)) (Literal (LitInt 4)))
-        )
+        , Mul
+          (Mul
+            (Mul (Literal (LitInt 1)) (Literal (LitInt 2)))
+            (Literal (LitInt 3)))
+          (Literal (LitInt 4))
       )
     ]
 
@@ -109,21 +110,21 @@ testComplexMath = do
 
 testBasicArithmetic :: Expectation
 testBasicArithmetic = do
-  runParser (parseOperator emptyEnv (Literal (LitInt 1))) "+1"
+  runParser (parseOperator '+' emptyEnv{ operands = [Literal (LitInt 1)] }) "+1"
     `shouldBe` Add (Literal (LitInt 1)) (Literal (LitInt 1))
-  runParser (parseOperator emptyEnv (Literal (LitInt 1))) "-1"
+  runParser (parseOperator '-' emptyEnv{ operands = [Literal (LitInt 1)] }) "-1"
     `shouldBe` Sub (Literal (LitInt 1)) (Literal (LitInt 1))
-  runParser (parseOperator emptyEnv (Literal (LitInt 1))) "*1"
+  runParser (parseOperator '*' emptyEnv{ operands = [Literal (LitInt 1)] }) "*1"
     `shouldBe` Mul (Literal (LitInt 1)) (Literal (LitInt 1))
-  runParser (parseOperator emptyEnv (Literal (LitInt 1))) "/1"
+  runParser (parseOperator '/' emptyEnv{ operands = [Literal (LitInt 1)] }) "/1"
     `shouldBe` Div (Literal (LitInt 1)) (Literal (LitInt 1))
-  runParser (parseOperator emptyEnv (Variable "a")) "+b"
+  runParser (parseOperator '+' emptyEnv{ operands = [Variable "a"] }) "+b"
     `shouldBe` Add (Variable "a") (Variable "b")
-  runParser (parseOperator emptyEnv (Variable "a")) "-b"
+  runParser (parseOperator '-' emptyEnv{ operands = [Variable "a"] }) "-b"
     `shouldBe` Sub (Variable "a") (Variable "b")
-  runParser (parseOperator emptyEnv (Variable "a")) "*b"
+  runParser (parseOperator '*' emptyEnv{ operands = [Variable "a"] }) "*b"
     `shouldBe` Mul (Variable "a") (Variable "b")
-  runParser (parseOperator emptyEnv (Variable "a")) "/b"
+  runParser (parseOperator '/' emptyEnv{ operands = [Variable "a"] }) "/b"
     `shouldBe` Div (Variable "a") (Variable "b")
   runParser (parseExpr emptyEnv) "1+1"
     `shouldBe` Add (Literal (LitInt 1)) (Literal (LitInt 1))
@@ -142,7 +143,7 @@ testBasicArithmetic = do
   runParser (parseExpr emptyEnv) "a/b"
     `shouldBe` Div (Variable "a") (Variable "b")
   runParser (parseExpr emptyEnv) "1*2*3+4" `shouldBe` Add
-    (Mul (Literal (LitInt 1)) (Mul (Literal (LitInt 2)) (Literal (LitInt 3))))
+    (Mul (Mul (Literal (LitInt 1)) (Literal (LitInt 2))) (Literal (LitInt 3)))
     (Literal (LitInt 4))
 
 testParseVariables :: Expectation
@@ -179,5 +180,22 @@ testParseApplications = do
     (Lambda "x" (Add (Variable "x") (Literal (LitInt 1))))
     (Literal (LitInt 2))
 
-emptyEnv :: Env
-emptyEnv = Env { operators = [], operands = [] }
+testParseBrackets :: Expectation
+testParseBrackets = do
+  runParser (parseBracket emptyEnv) "(a+a)"
+    `shouldBe` Add (Variable "a") (Variable "a")
+  traverse_
+    (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
+    [ ("(a+a)*a", Mul (Add (Variable "a") (Variable "a")) (Variable "a"))
+    , ( "(λa.λb.a) 42"
+      , Application (Lambda "a" (Lambda "b" (Variable "a")))
+                    (Literal (LitInt 42))
+      )
+    , ( "(λa.λb.a) 42 69"
+      , Application
+        (Application (Lambda "a" (Lambda "b" (Variable "a")))
+                     (Literal (LitInt 42))
+        )
+        (Literal (LitInt 69))
+      )
+    ]
