@@ -28,7 +28,10 @@ library
   exposed-modules:     Dzang
                      , Dzang.Language
                      , Dzang.Interpreter
-                     , Dzang.TypeChecker
+                     , Dzang.Typing.TypeChecker
+                     , Dzang.Typing.Types
+                     , Dzang.Typing.Inferer
+                     , Dzang.Typing.Solver
   build-depends:       text
                      , transformers
                      , mtl
@@ -58,6 +61,8 @@ test-suite dzang-test
                       -fno-warn-type-defaults
   other-modules:      Dzang.Test.ParserSpec
                     , Dzang.Test.InterpreterSpec
+                    , Dzang.Test.InfererSpec
+                    , Dzang.Test.SolverSpec
                     , Dzang.Test.TypeCheckerSpec
   build-depends:      hspec
                     , hspec-expectations
@@ -68,4 +73,5 @@ test-suite dzang-test
                     , random >= 1.2.0
                     , text
                     , time
+                    , mtl
   build-tool-depends: hspec-discover:hspec-discover == 2.*

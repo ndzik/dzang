@@ -29,6 +29,13 @@ data Expression = Application Expression Expression
 data Lit = LitInt Integer
          | LitBool Bool
          deriving (Show, Eq)
+
+litInt :: Integer -> Expression
+litInt i = Literal $ LitInt i
+
+litBool :: Bool-> Expression
+litBool b = Literal $ LitBool b
+
 data Operator = AddOp | SubOp | MulOp | DivOp deriving Show
 
 data Env = Env
