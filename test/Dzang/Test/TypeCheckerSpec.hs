@@ -17,7 +17,7 @@ spec = describe "Dzang TypeChecker" $ do
     runTypeChecker (litInt 10) `shouldBe` PType int
     runTypeChecker (Lambda "x" (Add (Variable "x") (litInt 1))) `shouldBe` PType (int :-> int)
     runTypeChecker (Application (Lambda "x" (Add (Variable "x") (litInt 1))) (litInt 2)) `shouldBe` PType int
-    runTypeChecker (Lambda "x" (Lambda "y" (Variable "x"))) `shouldBe` PType (typevar "a1" :-> (typevar "a2" :-> typevar "a1"))
+    runTypeChecker (Lambda "x" (Lambda "y" (Variable "x"))) `shouldBe` ForAll [TypeVar "a", TypeVar "b"] (PType $ typevar "a" :-> (typevar "b" :-> typevar "a"))
     runTypeChecker (Lambda "x" (Lambda "y" (Add (Variable "x") (Variable "y")))) `shouldBe` PType (int :-> (int :-> int))
   it "rejects ill-typed expressions" testErrors
 

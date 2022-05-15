@@ -4,12 +4,12 @@
 module Dzang.Typing.Solver where
 
 import Control.Monad.State
+import Data.Bifunctor (second)
 import Dzang.Typing.Inferer
   ( Constraint,
     Substitutable (..),
     Substitution,
     apply,
-    compose,
   )
 import Dzang.Typing.Types
 import Text.Printf
@@ -18,7 +18,7 @@ import Text.Printf
 type Solver a = State [Constraint] a
 
 evalSolver :: [Constraint] -> Substitution
-evalSolver = evalState (solve [])
+evalSolver = evalState (solve []) . reverse
 
 -- solve checks the list of constraints for consistency resulting in a
 -- substitution which can be applied to a PolyType.
@@ -26,7 +26,7 @@ solve :: Substitution -> Solver Substitution
 solve sub =
   get >>= \case
     [] -> return sub
-    ((t1, t2) : cs) -> let s = unify t1 t2 in put (apply s cs) >> solve (sub ++ s)
+    ((t1, t2) : cs) -> let s = unify t1 t2 in put (apply s cs) >> solve (s `compose` sub)
 
 -- unify tries to find a `Substitution` to unify MonoType `a` with MonoType
 -- `b`.
@@ -44,6 +44,9 @@ unify (mt1 :-> mt2) (mt1' :-> mt2') =
 unify (MTypeCon mt) (MTypeCon mt') = unify mt mt'
 unify t1 t2 =
   error $ printf "failed unification for %s ~ %s" (show t1) (show t2)
+
+compose :: Substitution -> Substitution -> Substitution
+compose s2 s1 = s2 ++ map (second (apply s2)) s1
 
 -- bind returns a Substitution for the given `TypeVar` with the `MonoType` iff
 -- the given typevariable is not free.

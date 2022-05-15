@@ -1,9 +1,10 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Dzang.Typing.Types where
 
-newtype TypeVar = TypeVar String deriving (Show, Eq)
+newtype TypeVar = TypeVar String deriving (Eq, Ord)
 
 data MonoType
   = MType TypeVar -- a. Typevariables which are NOT monomorphic.
@@ -25,7 +26,11 @@ instance Show MonoType where
 
 instance Show PolyType where
   show (PType mt) = "{ " <> show mt <> " }"
-  show (ForAll as pt) = "∀" <> concatMap show as <> "." <> show pt
+  show (ForAll [] pt) = show pt
+  show (ForAll as pt) = "∀" <> unwords (map show as) <> "." <> show pt
+
+instance Show TypeVar where
+  show (TypeVar n) = n
 
 int :: MonoType
 int = MConcreteType "int"

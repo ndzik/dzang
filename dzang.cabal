@@ -36,6 +36,7 @@ library
                      , transformers
                      , mtl
                      , dzarser
+                     , containers
 
 executable dzang-exe
   import: shared
@@ -60,6 +61,7 @@ test-suite dzang-test
                       -with-rtsopts=-N
                       -fno-warn-type-defaults
   other-modules:      Dzang.Test.ParserSpec
+                    , Dzang.Test.DzangSpec
                     , Dzang.Test.InterpreterSpec
                     , Dzang.Test.InfererSpec
                     , Dzang.Test.SolverSpec

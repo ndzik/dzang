@@ -1,12 +1,14 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Dzang.Typing.Inferer where
 
 import Control.Monad.RWS
-import Data.Bifunctor (bimap, second)
+import Data.Bifunctor (bimap)
 import Data.Functor ((<&>))
 import Data.List (find)
+import qualified Data.Set as S
 import Dzang.Language
 import Dzang.Typing.Types
 import Text.Printf
@@ -96,8 +98,6 @@ inferOperator :: Operator -> Expression -> Expression -> Inferer MonoType
 inferOperator _ lhs rhs = do
   tl <- infer lhs
   tr <- infer rhs
-  -- Trying to unify `int -> int` with `lhs + rhs` should result in `int`. Due
-  -- to laziness we have to force evaluation to WHNF with `!`.
   unify (int :-> int) (tl :-> tr)
   return int
 
@@ -127,7 +127,7 @@ type Substitution = [(TypeVar, MonoType)]
 
 class Substitutable a where
   apply :: Substitution -> a -> a
-  freeTV :: a -> [TypeVar]
+  freeTV :: a -> S.Set TypeVar
 
 instance Substitutable MonoType where
   apply s mt = case mt of
@@ -146,9 +146,9 @@ instance Substitutable MonoType where
     -- are handled just like arrow types.
     MTypeCon mtc -> MTypeCon (apply s mtc)
   freeTV mt = case mt of
-    MType tv -> [tv]
-    MConcreteType _ -> []
-    lhs :-> rhs -> freeTV lhs ++ freeTV rhs
+    MType tv -> S.singleton tv
+    MConcreteType _ -> S.empty
+    lhs :-> rhs -> freeTV lhs `S.union` freeTV rhs
     MTypeCon mtc -> freeTV mtc
 
 instance Substitutable PolyType where
@@ -160,19 +160,16 @@ instance Substitutable PolyType where
     ForAll as pt' -> ForAll as (apply [] pt')
   freeTV pt = case pt of
     PType mt -> freeTV mt
-    ForAll as pt' -> [tv | a <- as, tv <- freeTV pt', a /= tv]
+    ForAll as pt' -> S.fromList [tv | a <- as, tv <- S.toList $ freeTV pt', a /= tv]
 
 instance Substitutable Constraint where
   apply s c = bimap (apply s) (apply s) c
-  freeTV (t1, t2) = freeTV t1 ++ freeTV t2
+  freeTV (t1, t2) = freeTV t1 `S.union` freeTV t2
 
 instance Substitutable [Constraint] where
   apply s cs = map (apply s) cs
-  freeTV cs = concatMap freeTV cs
+  freeTV cs = foldl S.union S.empty $ map freeTV cs
 
 -- unify tracks relationship (constraint) between the given monotypes.
 unify :: MonoType -> MonoType -> Inferer ()
 unify a b = tell [(a, b)]
-
-compose :: Substitution -> Substitution -> Substitution
-compose s2 s1 = s2 ++ map (second (apply s2)) s1
