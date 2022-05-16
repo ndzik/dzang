@@ -14,21 +14,21 @@ Dzang can evaluate math expressions and type language constructs like lambda fun
 # Evaluation mode
 $ cabal run dzang-exe
 λf.λx.λy.(f x y) (λa.λb.a+b) 2 2
--> 4
+→ 4
 
 # Typing mode
 $ cabal run dzang-exe -- -t
 λf.λx.λy.(f x y)
--> ∀a b c.{ ( ( a -> ( b -> c ) ) -> ( a -> ( b -> c ) ) ) }
+→ ∀a b c.{ ( ( a -> ( b -> c ) ) -> ( a -> ( b -> c ) ) ) }
 
 λf.λx.λy.(f x y) (λa.λb.a+b)
--> { ( int -> ( int -> int ) ) }
+→ { ( int -> ( int -> int ) ) }
 
 λf.λx.λy.(f x y) (λa.λb.a+b) 2
--> { ( int -> int ) }
+→ { ( int -> int ) }
 
 λf.λx.λy.(f x y) (λa.λb.a+b) 2 2
--> { int }
+→ { int }
 ```
 
 # Coming
