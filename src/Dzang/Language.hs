@@ -1,8 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DataKinds #-}
 module Dzang.Language where
 
 import           Control.Applicative            ( (<|>) )
 import           Data.List
+import           Data.Functor                   ( ($>) )
 import           Dzarser.Parser
 import           Text.Printf
 
@@ -27,20 +29,36 @@ data Expression = Application Expression Expression
 data Lit = LitInt Integer
          | LitBool Bool
          deriving (Show, Eq)
+
+litInt :: Integer -> Expression
+litInt i = Literal $ LitInt i
+
+litBool :: Bool-> Expression
+litBool b = Literal $ LitBool b
+
 data Operator = AddOp | SubOp | MulOp | DivOp deriving Show
 
 data Env = Env
-  { operators :: OpStack
-  , operands  :: OprandStack
+  { operators       :: OpStack
+  , operands        :: OprandStack
+  , parsingFun      :: Bool
   }
 type OpStack = [Char]
 type OprandStack = [Expression]
+type FuncStack = [Expression]
+type FuncBodyStack = [Expression]
 
 parseDzang :: String -> Expression
-parseDzang = runParser $ parseExpr Env { operators = [], operands = [] }
+parseDzang = runParser $ parseExpr emptyEnv
 
 debugDzang :: String -> [ParserResult Expression]
-debugDzang = debugParser $ parseExpr Env { operators = [], operands = [] }
+debugDzang = debugParser $ parseExpr emptyEnv
+
+emptyEnv :: Env
+emptyEnv = Env { operators  = []
+               , operands   = []
+               , parsingFun = False
+               }
 
 viewVars :: Expression -> [Name]
 viewVars (Lambda n e) = n : viewVars e
@@ -70,16 +88,16 @@ reserved = ["module", "where"]
 
 parseModule :: Parser Expression
 parseModule = name >>= \case
-  "module" -> modul
+  "module" -> parseModuleKey
   _ -> parserFail "expecting module to start with module header declaration"
  where
   eval' :: Parser [(Name, Expression)]
   eval' = return []
-  modul :: Parser Expression
-  modul =
-    Module <$> (optional spaces *> name) <*> (optional spaces *> wher *> eval')
-  wher :: Parser [(Name, Expression)]
-  wher = name >>= \case
+  parseModuleKey :: Parser Expression
+  parseModuleKey =
+    Module <$> (optional spaces *> name) <*> (optional spaces *> parseWhere *> eval')
+  parseWhere :: Parser [(Name, Expression)]
+  parseWhere = name >>= \case
     "where" -> eval'
     res     -> parserFail
       $ printf "expecting 'where' to close module definition got: %s" res
@@ -118,89 +136,109 @@ parseBool =
             )
         )
 
--- infixOps is a map of infix operators together with their precendence.
-infixOps :: [(Char, Int, Bool)]
-infixOps = [('+', 0, False), ('-', 0, True), ('/', 1, True), ('*', 1, False)]
+data Fixity = Infix | Prefix | Postfix deriving Show
+data Associativity = LeftAssoc | RightAssoc deriving Show
+
+-- operatorsMap is a map of infix operators together with their precendence.
+operatorsMap :: [(Char, Int, Associativity, Fixity)]
+operatorsMap =
+  [ ('+', 0 , LeftAssoc , Infix)
+  , ('-', 0 , LeftAssoc , Infix)
+  , ('/', 1 , LeftAssoc , Infix)
+  , ('*', 1 , LeftAssoc , Infix)
+  , (' ', 20, LeftAssoc , Infix)
+  ]
 
 precedence :: Char -> Int
-precedence c = case find (\(op, _, _) -> c == op) infixOps of
-  Just (_, prec, _) -> prec
-  Nothing           -> error "unknown operator lookup"
+precedence c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, prec, _, _) -> prec
+  Nothing              -> error "unknown operator lookup"
 
 isInfixOp :: Char -> Bool
-isInfixOp c = case find (\(op, _, _) -> c == op) infixOps of
-  Nothing -> False
-  _       -> True
+isInfixOp c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, _, _, Infix) -> True
+  _                     -> False
 
 isInfixOpM :: Char -> Parser Bool
-isInfixOpM c = case find (\(op, _, _) -> c == op) infixOps of
-  Nothing -> return False
-  _       -> return True
+isInfixOpM c = return $ isInfixOp c
+
+isOperator :: Char -> Bool
+isOperator c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just _ -> True
+  _      -> False
 
 isLeftAssoc :: Char -> Bool
-isLeftAssoc c = case find (\(op, _, _) -> c == op) infixOps of
-  Nothing            -> error "unknown operator lookup"
-  Just (_, _, assoc) -> assoc
+isLeftAssoc c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, _, LeftAssoc, _) -> True
+  _                         -> False
+
+isRightAssoc :: Char -> Bool
+isRightAssoc c = case find (\(op, _, _, _) -> c == op) operatorsMap of
+  Just (_, _, RightAssoc, _) -> True
+  _                         -> False
 
 parseExpr :: Env -> Parser Expression
-parseExpr env = parseLVal env >>= parseRVal env
+parseExpr env@(Env _ ds pf) = parseOperand env >>= \res -> peek >>= \case
+  Nothing -> return . head . operands $ printAll env{ operands = res:ds } -- EOF
+  Just c
+    | (c == ' ' && pf) || c == ')'
+                   -> return . head . operands $ printAll env{ operands = res:ds }
+    | isOperator c -> parseOperator c env{ operands = res : ds }
+    | otherwise    -> parserFail "unexpected continuation of stream"
 
-parseLVal :: Env -> Parser Expression
-parseLVal env =
-  parseLambda env <|> parseLiteral <|> parseVariable <|> parserFail
-    "expected either Lambda, Literal, Variable or Application"
+-- Shunting-Yard-Algorithm:
+-- http://mathcenter.oxford.emory.edu/site/cs171/shuntingYardAlgorithm/
+parseOperator :: Char -> Env -> Parser Expression
+parseOperator cop env@(Env [] _ _) = item >> parseExpr env{ operators = [cop] }
+parseOperator cop env@(Env os _ _)
+     | (curPrec os < precedence cop)
+       || (curPrec os == precedence cop
+           && isRightAssoc cop)  = item >> parseExpr env{ operators = cop:os }
+     | (curPrec os > precedence cop)
+       || (curPrec os == precedence cop
+           && isLeftAssoc cop)   = parseOperator cop $ popAndPrint env
+parseOperator _ _                = error "unhandled case in parseOperator"
 
--- Conditional on `lval` being a lambda expression -> possible lambda
--- application following.
-parseRVal :: Env -> Expression -> Parser Expression
-parseRVal env lambda@(Lambda _ _) = peek >>= \case
-  Nothing -> return lambda
-  _       -> parseApp env lambda
-parseRVal env lval = parseOperator env lval
+popAndPrint :: Env -> Env
+popAndPrint (Env [] [] _)                          = error "should not happen"
+popAndPrint env@(Env [] [_] _)                     = env
+popAndPrint env@(Env ('+': os) (rhs : lhs : ds) _) = env{ operators = os, operands = Add lhs rhs : ds }
+popAndPrint env@(Env ('-': os) (rhs : lhs : ds) _) = env{ operators = os, operands = Sub lhs rhs : ds }
+popAndPrint env@(Env ('/': os) (rhs : lhs : ds) _) = env{ operators = os, operands = Div lhs rhs : ds }
+popAndPrint env@(Env ('*': os) (rhs : lhs : ds) _) = env{ operators = os, operands = Mul lhs rhs : ds }
+popAndPrint env@(Env (' ': os) (rhs : lhs : ds) _) = env{ operators = os, operands = Application lhs rhs : ds }
+popAndPrint (Env os ds _)                          = error $ printf "unhandled case: %n %n" (length os) (length ds)
+
+printAll :: Env -> Env
+printAll env@(Env [] [_] _) = env
+printAll env = printAll . popAndPrint $ env
+
+parseOperand :: Env -> Parser Expression
+parseOperand _ = parseBracket emptyEnv
+               <|> parseLiteral
+               <|> parseLambda emptyEnv
+               <|> parseVariable
+
+parseBracket :: Env -> Parser Expression
+parseBracket env = peek >>= \case
+  Just '('  -> item >> parseExpr env >>= \body -> expect ')' $> body
+  _         -> parserFail "expected opening bracket"
 
 parseLambda :: Env -> Parser Expression
-parseLambda env =
-  Lambda
-    <$> (optional spaces *> expect 'λ' *> optional spaces *> name)
-    <*> (optional spaces *> expect '.' *> optional spaces *> parseExpr env)
+parseLambda env = Lambda
+      <$> (expect 'λ' *> optional spaces *> name)
+      <*> (optional spaces *> expect '.' *> optional spaces *> parseExpr env{ parsingFun = True })
 
 parseApp :: Env -> Expression -> Parser Expression
-parseApp env lambda = Application lambda <$> (optional spaces *> parseExpr env)
+parseApp env expr = Application expr <$> (optional spaces *> parseExpr env)
 
 parseVariable :: Parser Expression
 parseVariable = Variable <$> name
-
-parseOperator :: Env -> Expression -> Parser Expression
-parseOperator env@(Env os ds) lval = peek >>= \case
-  Nothing | null os && null ds -> return lval
-          | otherwise          -> mkTree os (lval : ds)
-  Just op
-    | not (isInfixOp op)
-    -> mkTree os (lval : ds)
-    | precedence op <  curPrec os
-    -> mkTree os (lval : ds)
-    | (precedence op == curPrec os && (isLeftAssoc op || curAssocLeft os))
-    -> mkTree os (lval : ds)
-    | otherwise
-    -> item
-      >>  parseExpr env { operators = op : operators env, operands = lval : ds }
-      >>= \rval -> parseOperator env { operators = os, operands = ds } rval
-
--- mkTree receives an operator and operand stack. It makes an AST out of the
--- operands using the topmost available operator.
-mkTree :: OpStack -> OprandStack -> Parser Expression
-mkTree ('+' : _) (rhs : lhs : _) = return $ Add lhs rhs
-mkTree ('-' : _) (rhs : lhs : _) = return $ Sub lhs rhs
-mkTree ('*' : _) (rhs : lhs : _) = return $ Mul lhs rhs
-mkTree ('/' : _) (rhs : lhs : _) = return $ Div lhs rhs
-mkTree []        [expr         ] = return expr
-mkTree []        _               = parserFail "no operator to make tree"
-mkTree _         _               = parserFail "unsupported operator"
 
 curPrec :: OpStack -> Int
 curPrec []       = -1
 curPrec (op : _) = precedence op
 
 curAssocLeft :: OpStack -> Bool
-curAssocLeft [] = False
-curAssocLeft (op:_) = isLeftAssoc op
+curAssocLeft []       = False
+curAssocLeft (op : _) = isLeftAssoc op

@@ -25,10 +25,11 @@ testAppliedLambda :: Expectation
 testAppliedLambda = do
   traverse_
     (\(input, expec) -> runEval input `shouldBe` expec)
-    [ ("λx.42"              , VInt 42)
-    , ("λx.x+42 3"          , VInt 45)
-    , ("λx.λy.x+y 69 42"    , VInt 111)
-    , ("λx.λy.x*y λx.42 0 2", VInt 84)
+    [ ("λx.42"                              , VInt 42)
+    , ("λx.x+42 3"                          , VInt 45)
+    , ("λx.λy.x+y 69 42"                    , VInt 111)
+    , ("λx.λy.x+y (λx.69 0) (λy.42 0)"      , VInt 111)
+    , ("λf.λx.λy.(f x y) (λa.λb.a+b) 10 12" , VInt 22)
     ]
 
 testNestedMath :: Expectation
