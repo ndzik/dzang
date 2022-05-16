@@ -24,10 +24,13 @@ main = execParser opts >>= main'
 
 main' :: CmdLineArgs -> IO ()
 main' (CLA False False False False) = forever' evalEval
-main' (CLA True _ _ _) = forever' (print . debugDzang)
+main' (CLA True _ _ _) = forever' (pretty . debugDzang)
 main' (CLA _ True _ _) = forever' evalEval
-main' (CLA _ _ True _) = forever' (print . parseDzang)
-main' (CLA _ _ _ True) = forever' (print . runTypeChecker . parseDzang)
+main' (CLA _ _ True _) = forever' (pretty . parseDzang)
+main' (CLA _ _ _ True) = forever' (pretty . runTypeChecker . parseDzang)
+
+pretty :: Show a => a -> IO ()
+pretty a = putStrLn $ "→ " <> show a
 
 forever' :: (String -> IO ()) -> IO ()
 forever' f = forever $ do
