@@ -34,7 +34,8 @@ $ cabal run dzang-exe -- -t
 # Coming
 
 In no specific order:
-  [ ] - LSP implementation
-  [ ] - Custom data types definition
-  [ ] - Dependent Types
-  [ ] - More language abstractions to actually make Dzang _useful_
+
+- [ ] LSP implementation
+- [ ] Custom data types definition
+- [ ] Dependent Types
+- [ ] More language abstractions to actually make Dzang _useful_
