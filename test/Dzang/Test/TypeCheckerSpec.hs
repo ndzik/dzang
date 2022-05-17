@@ -2,6 +2,7 @@ module Dzang.Test.TypeCheckerSpec where
 
 import Control.Exception
 import Dzang.Language
+import Dzang.Typing.Error
 import Dzang.Typing.TypeChecker
 import Dzang.Typing.Types
 import Test.Hspec
@@ -23,5 +24,5 @@ spec = describe "Dzang TypeChecker" $ do
 
 testErrors :: Expectation
 testErrors = do
-  evaluate (runTypeChecker (Lambda "x" (Application (Variable "x") (Variable "x")))) `shouldThrow` errorCall "occurs check: cannot create infinite type"
-  evaluate (runTypeChecker (Application (Lambda "x" (Add (Variable "x") (litBool True))) (litInt 2))) `shouldThrow` errorCall "failed unification for int ~ bool"
+  evaluate (runTypeChecker (Lambda "x" (Application (Variable "x") (Variable "x")))) `shouldThrow` errorCall (show $ InfiniteTypeError (TypeVar "a1") (typevar "a1" :-> typevar "a2"))
+  evaluate (runTypeChecker (Application (Lambda "x" (Add (Variable "x") (litBool True))) (litInt 2))) `shouldThrow` errorCall (show $ MismatchedTypesError int bool)

@@ -1,3 +1,4 @@
+{-#LANGUAGE BangPatterns #-}
 module Main where
 
 import Control.Exception
@@ -5,6 +6,7 @@ import Control.Monad
 import Dzang.Interpreter
 import Dzang.Language
 import Dzang.Typing.TypeChecker
+import Dzang.Typing.Types
 import Options.Applicative
 
 data CmdLineArgs = CLA
@@ -13,6 +15,11 @@ data CmdLineArgs = CLA
     parse :: Bool,
     typeIt :: Bool
   }
+
+data InterpreterResult = IR Value PolyType
+
+instance Show InterpreterResult where
+  show (IR v pt) = show v <> ": " <> show pt
 
 main :: IO ()
 main = execParser opts >>= main'
@@ -27,7 +34,14 @@ main' (CLA False False False False) = forever' evalEval
 main' (CLA True _ _ _) = forever' (pretty . debugDzang)
 main' (CLA _ True _ _) = forever' evalEval
 main' (CLA _ _ True _) = forever' (pretty . parseDzang)
-main' (CLA _ _ _ True) = forever' (pretty . runTypeChecker . parseDzang)
+main' (CLA _ _ _ True) =
+  forever'
+    ( \s ->
+        let expr = parseDzang s
+            !pt = runTypeChecker expr
+            res = runExpr expr
+         in pretty $ IR res pt
+    )
 
 pretty :: Show a => a -> IO ()
 pretty a = putStrLn $ "→ " <> show a

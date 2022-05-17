@@ -1,5 +1,6 @@
 module Dzang.Test.InfererSpec where
 
+import Control.Monad.Except
 import Control.Monad.RWS
 import Dzang.Language
 import Dzang.Typing.Inferer
@@ -51,5 +52,5 @@ testIntOperations = do
 
 testFunctionUnification :: Expectation
 testFunctionUnification = do
-  snd (evalRWS (unify (int :-> int) (int :-> bool)) [] (InfererState 0))
-    `shouldBe` [(int :-> int, int :-> bool)]
+  runExcept ( evalRWST (unify (int :-> int) (int :-> bool)) [] (InfererState 0))
+      `shouldBe` Right ((), [(int :-> int, int :-> bool)])

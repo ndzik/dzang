@@ -22,10 +22,14 @@ instance Show MonoType where
   show (MType (TypeVar n)) = n
   show (MConcreteType n) = n
   show (MTypeCon t) = "C " <> show t
-  show (a :-> b) = "( " <> show a <> " -> " <> show b <> " )"
+  show (a :-> b) = case a of
+    -- `:->` is right associative. "Turning left" indicates
+    -- a nested function.
+    (c :-> d) -> "( " <> show c <> " → " <> show d <> " )" <> " → " <> show b
+    _ -> show a <> " → " <> show b
 
 instance Show PolyType where
-  show (PType mt) = "{ " <> show mt <> " }"
+  show (PType mt) = show mt
   show (ForAll [] pt) = show pt
   show (ForAll as pt) = "∀" <> unwords (map show as) <> "." <> show pt
 

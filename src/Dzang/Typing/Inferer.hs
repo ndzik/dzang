@@ -4,21 +4,22 @@
 
 module Dzang.Typing.Inferer where
 
+import Control.Monad.Except
 import Control.Monad.RWS
 import Data.Bifunctor (bimap)
 import Data.Functor ((<&>))
 import Data.List (find)
 import qualified Data.Set as S
 import Dzang.Language
+import Dzang.Typing.Error
 import Dzang.Typing.Types
-import Text.Printf
 
 -- This module contains the `Inferer` which collects constraints and infers the
 -- types of expressions written in `Dzang`.
 
 -- `Inferer` runs over a `Dzang` expression and collects constraints about the
 -- types used.
-type Inferer a = RWS TypingEnv [Constraint] InfererState a
+type Inferer a = RWST TypingEnv [Constraint] InfererState (Except TypeError) a
 
 -- Constraint describes the constraint of a type by tying it together with a
 -- respective type which allows to either generalize or instantiate the
@@ -32,12 +33,14 @@ newtype InfererState = InfererState
   }
 
 runInference :: Expression -> MonoType
-runInference expr = t
-  where
-    (t, _, _) = runRWS (infer expr) [] (InfererState 0)
+runInference expr = case runExcept $ runRWST (infer expr) [] (InfererState 0) of
+  Left te -> error $ show te
+  Right (t, _, _) -> t
 
 evalInference :: Expression -> (MonoType, [Constraint])
-evalInference expr = evalRWS (infer expr) [] (InfererState 0)
+evalInference expr = case runExcept $ evalRWST (infer expr) [] (InfererState 0) of
+  Left te -> error $ show te
+  Right r -> r
 
 freshTVar :: Inferer TypeVar
 freshTVar = do
@@ -63,8 +66,8 @@ infer expr = case expr of
   Lambda n e -> inferLambda n e
   Application e1 e2 -> inferApplication e1 e2
   Literal lit -> inferLiteral lit
-  Module _ _ -> error "modules do not have a type"
-  Definition _ _ -> error "definition not supported (yet)"
+  m@(Module _ _) -> throwError $ UnsupportedExprError m
+  Definition n e -> inferDefinition n e
   Add lhs rhs -> inferOperator AddOp lhs rhs
   Sub lhs rhs -> inferOperator SubOp lhs rhs
   Mul lhs rhs -> inferOperator MulOp lhs rhs
@@ -94,6 +97,13 @@ inferLiteral :: Lit -> Inferer MonoType
 inferLiteral (LitInt _) = return int
 inferLiteral (LitBool _) = return bool
 
+inferDefinition :: Name -> Expression -> Inferer MonoType
+inferDefinition n expr = do
+  mt <- freshMTVar
+  rt <- local (replaceTVar n $ ForAll [] (PType mt)) (infer expr)
+  unify mt rt
+  return mt
+
 inferOperator :: Operator -> Expression -> Expression -> Inferer MonoType
 inferOperator _ lhs rhs = do
   tl <- infer lhs
@@ -103,7 +113,7 @@ inferOperator _ lhs rhs = do
 
 resolveType :: TypingEnv -> Name -> Inferer MonoType
 resolveType env v = case find (\(n, _) -> n == v) env of
-  Nothing -> error $ printf "unbound variable: %s" v
+  Nothing -> throwError $ UnboundVariableError v
   -- Pulling the type of a variable from the environment requires instantiating
   -- the type scheme because the variable itself could either have a concrete
   -- type assigned to it already or be instantiated with a `TypeVariable`.
