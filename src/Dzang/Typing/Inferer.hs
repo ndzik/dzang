@@ -67,7 +67,7 @@ infer expr = case expr of
   Application e1 e2 -> inferApplication e1 e2
   Literal lit -> inferLiteral lit
   m@(Module _ _) -> throwError $ UnsupportedExprError m
-  d@(Definition _ _) -> throwError $ UnsupportedExprError d
+  Definition n e -> inferDefinition n e
   Add lhs rhs -> inferOperator AddOp lhs rhs
   Sub lhs rhs -> inferOperator SubOp lhs rhs
   Mul lhs rhs -> inferOperator MulOp lhs rhs
@@ -96,6 +96,13 @@ inferApplication e0 e1 = do
 inferLiteral :: Lit -> Inferer MonoType
 inferLiteral (LitInt _) = return int
 inferLiteral (LitBool _) = return bool
+
+inferDefinition :: Name -> Expression -> Inferer MonoType
+inferDefinition n expr = do
+  mt <- freshMTVar
+  rt <- local (replaceTVar n $ ForAll [] (PType mt)) (infer expr)
+  unify mt rt
+  return mt
 
 inferOperator :: Operator -> Expression -> Expression -> Inferer MonoType
 inferOperator _ lhs rhs = do
