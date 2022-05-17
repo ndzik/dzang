@@ -17,13 +17,13 @@ spec = describe "Dzang ConstraintSolver" $ do
 
 testUnification :: Expectation
 testUnification = do
-  unify (typevar "a1") (typevar "a2") `shouldBe` [(TypeVar "a1", typevar "a2")]
+  unify (typevar "a1") (typevar "a2") `shouldBe` Right [(TypeVar "a1", typevar "a2")]
   unify (typevar "a1") (int :-> int)
-    `shouldBe` [(TypeVar "a1", int :-> int)]
+    `shouldBe` Right [(TypeVar "a1", int :-> int)]
   unify (typevar "a1" :-> typevar "a2") (typevar "a3" :-> typevar "a4")
-    `shouldBe` [(TypeVar "a2", typevar "a4"), (TypeVar "a1", typevar "a3")]
+    `shouldBe` Right [(TypeVar "a2", typevar "a4"), (TypeVar "a1", typevar "a3")]
   unify (typevar "a1" :-> typevar "a2") (typevar "a3" :-> int)
-    `shouldBe` [(TypeVar "a2", int), (TypeVar "a1", typevar "a3")]
+    `shouldBe` Right [(TypeVar "a2", int), (TypeVar "a1", typevar "a3")]
 
 testSolver :: Expectation
 testSolver = do
