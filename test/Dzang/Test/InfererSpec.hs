@@ -22,21 +22,21 @@ spec = do
 
 testPrimitives :: Expectation
 testPrimitives = do
-  evalInference (Literal (LitInt 1)) `shouldBe` (int, [])
-  evalInference (Literal (LitBool False)) `shouldBe` (bool, [])
-  evalInference (Lambda "x" (Variable "x"))
+  evalInference [] (Literal (LitInt 1)) `shouldBe` (int, [])
+  evalInference [] (Literal (LitBool False)) `shouldBe` (bool, [])
+  evalInference [] (Lambda "x" (Variable "x"))
     `shouldBe` (typevar "a1" :-> typevar "a1", [])
-  evalInference (Lambda "x" (Literal (LitInt 1)))
+  evalInference [] (Lambda "x" (Literal (LitInt 1)))
     `shouldBe` (typevar "a1" :-> int, [])
-  evalInference (Lambda "x" (Lambda "y" (Literal (LitInt 1))))
+  evalInference [] (Lambda "x" (Lambda "y" (Literal (LitInt 1))))
     `shouldBe` (typevar "a1" :-> (typevar "a2" :-> int), [])
-  evalInference (Lambda "x" (Add (litInt 1) (Variable "x")))
+  evalInference [] (Lambda "x" (Add (litInt 1) (Variable "x")))
     `shouldBe` (typevar "a1" :-> int, [(int :-> int, int :-> typevar "a1")])
   -- λx.1+x 1 = 2
   -- a1 -> int
   -- (int -> int) ~ (int -> a1) <- inferOperator
   -- (a1 -> int) ~ (int -> a2) <- inferApplication
-  evalInference
+  evalInference []
     (Application (Lambda "x" (Add (litInt 1) (Variable "x"))) (litInt 1))
     `shouldBe` ( typevar "a2",
                  [ (int :-> int, int :-> typevar "a1"),
@@ -47,10 +47,10 @@ testPrimitives = do
 testIntOperations :: Expectation
 testIntOperations = do
   runInference (Add (Literal (LitInt 1)) (Literal (LitInt 1))) `shouldBe` int
-  evalInference (Div (Literal (LitInt 1)) (Literal (LitBool False)))
+  evalInference [] (Div (Literal (LitInt 1)) (Literal (LitBool False)))
     `shouldBe` (int, [(int :-> int, int :-> bool)])
 
 testFunctionUnification :: Expectation
 testFunctionUnification = do
-  runExcept ( evalRWST (unify (int :-> int) (int :-> bool)) [] (InfererState 0))
+  runExcept ( evalRWST (unify (int :-> int) (int :-> bool)) [] (InfererState 0 []))
       `shouldBe` Right ((), [(int :-> int, int :-> bool)])

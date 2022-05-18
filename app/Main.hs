@@ -1,8 +1,8 @@
-{-#LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns #-}
+
 module Main where
 
 import Control.Exception
-import Control.Monad
 import Dzang.Interpreter
 import Dzang.Language
 import Dzang.Typing.TypeChecker
@@ -30,29 +30,32 @@ main = execParser opts >>= main'
         (fullDesc <> progDesc "Dzang interpreter environment")
 
 main' :: CmdLineArgs -> IO ()
-main' (CLA False False False False) = forever' evalEval
-main' (CLA True _ _ _) = forever' (pretty . debugDzang)
-main' (CLA _ True _ _) = forever' evalEval
-main' (CLA _ _ True _) = forever' (pretty . parseDzang)
+main' (CLA False False False False) = forever [] undefined
+main' (CLA True _ _ _) = forever [] undefined
+main' (CLA _ True _ _) = forever [] undefined
+main' (CLA _ _ True _) = forever [] undefined
 main' (CLA _ _ _ True) =
-  forever'
-    ( \s ->
+  forever
+    []
+    ( \s env ->
         let expr = parseDzang s
-            !pt = runTypeChecker expr
-            res = runExpr expr
-         in pretty $ IR res pt
+            !pt = runTypeChecker [] expr
+            res = evalInterpreter expr env
+         in do
+              pretty $ IR res pt
+              return env
     )
 
 pretty :: Show a => a -> IO ()
-pretty a = putStrLn $ "→ " <> show a
+pretty a = putStrLn $ "▶ " <> show a
 
-forever' :: (String -> IO ()) -> IO ()
-forever' f = forever $ do
+forever :: Environment -> (String -> Environment -> IO Environment) -> IO ()
+forever env f = do
   l <- getLine
-  res <- try (f l) :: IO (Either SomeException ())
+  res <- try (f l env) :: IO (Either SomeException Environment)
   case res of
-    Left err -> print err
-    Right _ -> return ()
+    Left err -> print err >> forever env f
+    Right env' -> forever env' f
 
 cmdLineParser :: Parser CmdLineArgs
 cmdLineParser =
