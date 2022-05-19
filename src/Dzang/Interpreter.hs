@@ -2,7 +2,6 @@ module Dzang.Interpreter
   ( InterpreterState(..)
   , Interpreter
   , forever
-  , InterpreterIO
   , runInterpreter
   , emptyInterpreterState
   , MonadInterpreter(..)
@@ -40,8 +39,6 @@ emptyInterpreterState = InterpreterState [] []
 -- Interpreter is a monad transformer containing its own environment and
 -- running in the context of `m`, which should be a `MonadInterpreter`.
 type Interpreter m a = StateT InterpreterState m a
-
-type InterpreterIO a = Interpreter IO a
 
 data InterpreterResult = IR Value PolyType
 
@@ -81,22 +78,22 @@ parse :: Monad m => String -> Interpreter m Expression
 parse = return . parseDzang
 
 typeIt :: Monad m => Expression -> Interpreter m PolyType
-typeIt expr = gets typeEnvironment >>= \env -> let (pt, env') = runTypeChecker' env expr in modify (\is -> is{typeEnvironment = env'}) >> return pt
+typeIt expr = gets typeEnvironment >>= \env ->
+  let (pt, env') = runTypeChecker' env expr
+  in  modify (\is -> is { typeEnvironment = env' }) >> return pt
 
 forever :: MonadInterpreter m => Interpreter m ()
-forever = getInput' >>= parse >>= \expr ->
-  typeIt expr >>= \pt -> eval expr >>= \v -> log' (IR v pt) >> forever
+forever = getInput' >>= parse >>= \expr -> do
+  pt <- typeIt expr
+  v  <- eval expr
+  log' (IR v pt) >> forever
 
 -- Interpreter evaluating simple expressions.
 eval :: Monad m => Expression -> Interpreter m Value
-eval (Add lhs rhs) =
-  eval lhs >>= \lhs' -> eval rhs >>= \rhs' -> evalAdd lhs' rhs'
-eval (Sub lhs rhs) =
-  eval lhs >>= \lhs' -> eval rhs >>= \rhs' -> evalSub lhs' rhs'
-eval (Mul lhs rhs) =
-  eval lhs >>= \lhs' -> eval rhs >>= \rhs' -> evalMul lhs' rhs'
-eval (Div lhs rhs) =
-  eval lhs >>= \lhs' -> eval rhs >>= \rhs' -> evalDiv lhs' rhs'
+eval (    Add lhs rhs          ) = evalAdd <$> eval lhs <*> eval rhs
+eval (    Sub lhs rhs          ) = evalSub <$> eval lhs <*> eval rhs
+eval (    Mul lhs rhs          ) = evalMul <$> eval lhs <*> eval rhs
+eval (    Div lhs rhs          ) = evalDiv <$> eval lhs <*> eval rhs
 eval (    Literal lit          ) = evalLiteral lit
 eval app@(Application _ _      ) = evalApplication [] app
 eval (    Variable vname       ) = evalVariable vname
@@ -114,20 +111,20 @@ evalVariable name = gets valueEnvironment >>= \env ->
     Nothing        -> error $ "unsaturated variable found: " <> name
     Just (_, expr) -> eval expr
 
-evalAdd :: Monad m => Value -> Value -> Interpreter m Value
-evalAdd (VInt lhs) (VInt rhs) = return . VInt $ lhs + rhs
+evalAdd :: Value -> Value -> Value
+evalAdd (VInt lhs) (VInt rhs) = VInt $ lhs + rhs
 evalAdd _          _          = error "mismatched types on addition"
 
-evalSub :: Monad m => Value -> Value -> Interpreter m Value
-evalSub (VInt lhs) (VInt rhs) = return . VInt $ lhs - rhs
+evalSub :: Value -> Value -> Value
+evalSub (VInt lhs) (VInt rhs) = VInt $ lhs - rhs
 evalSub _          _          = error "mismatched types on subtraction"
 
-evalMul :: Monad m => Value -> Value -> Interpreter m Value
-evalMul (VInt lhs) (VInt rhs) = return . VInt $ lhs * rhs
+evalMul :: Value -> Value -> Value
+evalMul (VInt lhs) (VInt rhs) = VInt $ lhs * rhs
 evalMul _          _          = error "mismatched types on multiplication"
 
-evalDiv :: Monad m => Value -> Value -> Interpreter m Value
-evalDiv (VInt lhs) (VInt rhs) = return . VInt $ lhs `div` rhs
+evalDiv :: Value -> Value -> Value
+evalDiv (VInt lhs) (VInt rhs) = VInt $ lhs `div` rhs
 evalDiv _          _          = error "mismatched types on division"
 
 evalLambda :: Monad m => Name -> Expression -> Interpreter m Value
@@ -137,13 +134,9 @@ evalApplication :: Monad m => [Expression] -> Expression -> Interpreter m Value
 evalApplication params (Application inner outer) =
   evalApplication (outer : params) inner
 evalApplication (p : ps) (Lambda var body@(Lambda _ _)) =
-  modify
-      (\s@(InterpreterState env _) -> s { valueEnvironment = (var, p) : env })
-    >> evalApplication ps body
+  addToValueEnv (var, p) >> evalApplication ps body
 evalApplication (p : _) (Lambda var body) =
-  modify
-      (\s@(InterpreterState env _) -> s { valueEnvironment = (var, p) : env })
-    >> evalLambda var body
+  addToValueEnv (var, p) >> evalLambda var body
 evalApplication params (Variable var) = gets valueEnvironment >>= \env ->
   case lookup var env of
     Just lambda@(Lambda _ _) -> evalApplication params lambda
@@ -151,7 +144,8 @@ evalApplication params (Variable var) = gets valueEnvironment >>= \env ->
 evalApplication _ _ = error "error applying arguments to function"
 
 evalDefinition :: Monad m => Name -> Expression -> Interpreter m Value
-evalDefinition n expr = do
-  modify
-    (\s@(InterpreterState env _) -> s { valueEnvironment = (n, expr) : env })
-  return $ VFun (Variable n)
+evalDefinition n expr = addToValueEnv (n, expr) >> return (VFun $ Variable n)
+
+addToValueEnv :: Monad m => (Name, Expression) -> Interpreter m ()
+addToValueEnv i =
+  modify (\s@(InterpreterState env _) -> s { valueEnvironment = i : env })

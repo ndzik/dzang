@@ -38,5 +38,3 @@ parseTypeEval s = (v, pt)
 runInterpreterMock :: String -> ((Value, InterpreterState), [PolyType])
 runInterpreterMock =
   runMockContext (runInterpreter interpret emptyInterpreterState)
-
-type InterpreterMock a = Interpreter (MockContext PolyType) a
