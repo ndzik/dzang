@@ -4,8 +4,8 @@ module Dzang.Test.Interpreter where
 
 import           Control.Monad.Reader
 import           Control.Monad.Writer
-import           Dzang.Error
-import           Dzang.Interpreter
+import           Dzang.Interpreter.Error
+import           Dzang.Interpreter.Interpreter
 import           Dzang.Language                 ( parseDzang )
 import           Dzang.Typing.TypeChecker       ( runTypeChecker )
 import           Dzang.Typing.Types             ( PolyType )

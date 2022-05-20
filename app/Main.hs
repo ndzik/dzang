@@ -1,7 +1,7 @@
 module Main where
 
 import           Control.Monad                  ( void )
-import           Dzang.Interpreter
+import           Dzang.Interpreter.Interpreter
 import           Options.Applicative
 
 data CmdLineArgs = CLA

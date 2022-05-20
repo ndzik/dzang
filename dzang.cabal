@@ -27,8 +27,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Dzang
                      , Dzang.Language
-                     , Dzang.Interpreter
-                     , Dzang.Error
+                     , Dzang.Interpreter.Interpreter
+                     , Dzang.Interpreter.Error
                      , Dzang.Typing.TypeChecker
                      , Dzang.Typing.Types
                      , Dzang.Typing.Inferer

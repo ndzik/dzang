@@ -1,6 +1,6 @@
 module Dzang.Test.DzangSpec where
 
-import           Dzang.Interpreter
+import           Dzang.Interpreter.Interpreter
 import           Dzang.Test.Interpreter
 import           Dzang.Typing.Types
 import           Test.Hspec                     ( Spec

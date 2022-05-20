@@ -1,6 +1,6 @@
 {-#LANGUAGE LambdaCase#-}
 {-#LANGUAGE ScopedTypeVariables#-}
-module Dzang.Interpreter
+module Dzang.Interpreter.Interpreter
   ( InterpreterState(..)
   , Interpreter
   , forever
@@ -15,7 +15,7 @@ module Dzang.Interpreter
 import           Control.Monad.Except    hiding ( forever )
 import           Control.Monad.State     hiding ( forever )
 import           Data.List
-import           Dzang.Error
+import           Dzang.Interpreter.Error
 import           Dzang.Language
 import           Dzang.Typing.TypeChecker       ( runTypeChecker' )
 import           Dzang.Typing.Types

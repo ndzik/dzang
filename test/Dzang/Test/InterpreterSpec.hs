@@ -1,7 +1,7 @@
 module Dzang.Test.InterpreterSpec where
 
 import           Data.Foldable
-import           Dzang.Interpreter
+import           Dzang.Interpreter.Interpreter
 import           Dzang.Test.Interpreter
 import           Test.Hspec                     ( Spec
                                                 , describe

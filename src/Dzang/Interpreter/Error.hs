@@ -1,4 +1,4 @@
-module Dzang.Error where
+module Dzang.Interpreter.Error where
 
 import Dzang.Typing.Error
 
