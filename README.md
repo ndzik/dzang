@@ -11,24 +11,21 @@ Dzang is an experiment for me to gain experience in writing a small library ([dz
 Dzang can evaluate math expressions and type language constructs like lambda functions and their return types.
 
 ```
-# Evaluation mode
-$ cabal run dzang-exe
-λf.λx.λy.(f x y) (λa.λb.a+b) 2 2
-→ 4
-
-# Typing mode
-$ cabal run dzang-exe -- -t
-λf.λx.λy.(f x y)
-→ ∀a b c.{ ( ( a -> ( b -> c ) ) -> ( a -> ( b -> c ) ) ) }
-
-λf.λx.λy.(f x y) (λa.λb.a+b)
-→ { ( int -> ( int -> int ) ) }
-
-λf.λx.λy.(f x y) (λa.λb.a+b) 2
-→ { ( int -> int ) }
-
-λf.λx.λy.(f x y) (λa.λb.a+b) 2 2
-→ { int }
+cabal run dzang-exe
+a=1
+▷ a: int
+b=2
+▷ b: int
+a+b
+▷ 3: int
+f=λg.λx.λy.(g x y)
+▷ f: ∀a b c.( a → b → c ) → a → b → c
+add=λx.λy.(x+y)
+▷ add: int → int → int
+add 1 2
+▷ 3: int
+add a b
+▷ 3: int
 ```
 
 # Coming
