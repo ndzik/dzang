@@ -27,7 +27,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Dzang
                      , Dzang.Language
-                     , Dzang.Interpreter
+                     , Dzang.Interpreter.Interpreter
+                     , Dzang.Interpreter.Error
                      , Dzang.Typing.TypeChecker
                      , Dzang.Typing.Types
                      , Dzang.Typing.Inferer
@@ -67,6 +68,7 @@ test-suite dzang-test
                     , Dzang.Test.InfererSpec
                     , Dzang.Test.SolverSpec
                     , Dzang.Test.TypeCheckerSpec
+                    , Dzang.Test.Interpreter
   build-depends:      hspec
                     , hspec-expectations
                     , hspec-expectations-pretty-diff
