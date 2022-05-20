@@ -19,16 +19,18 @@ spec = do
 testSimpleMathEval :: Expectation
 testSimpleMathEval = do
   traverse_
-    (\(input, expec) ->
-      (fst . fst . runInterpreterMock $ input) `shouldBe` expec
-    )
-    [("1+1", VInt 2), ("2-1", VInt 1), ("2*2", VInt 4), ("4/2", VInt 2)]
+    (\(input, expec) -> evalInterpreterMock input `shouldBe` expec)
+    [ ("1+1", VInt 2)
+    , ("2-1", VInt 1)
+    , ("2*2", VInt 4)
+    , ("4/2", VInt 2)
+    ]
 
 testAppliedLambda :: Expectation
 testAppliedLambda = do
   traverse_
     (\(input, expec) ->
-      (fst . fst . runInterpreterMock $ input) `shouldBe` expec
+      evalInterpreterMock input `shouldBe` expec
     )
     [ ("λx.42"                             , VInt 42)
     , ("λx.x+42 3"                         , VInt 45)
@@ -39,5 +41,8 @@ testAppliedLambda = do
 
 testNestedMath :: Expectation
 testNestedMath = do
-  traverse_ (\(input, expec) -> (fst . fst . runInterpreterMock $ input) `shouldBe` expec)
-            [("λx.2*3-4+5-6+x 10", VInt 11)]
+  traverse_
+    (\(input, expec) ->
+      evalInterpreterMock input `shouldBe` expec
+    )
+    [("λx.2*3-4+5-6+x 10", VInt 11)]

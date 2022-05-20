@@ -28,6 +28,7 @@ library
   exposed-modules:     Dzang
                      , Dzang.Language
                      , Dzang.Interpreter
+                     , Dzang.Error
                      , Dzang.Typing.TypeChecker
                      , Dzang.Typing.Types
                      , Dzang.Typing.Inferer

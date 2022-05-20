@@ -18,10 +18,8 @@ import Dzang.Typing.Types
 -- Solver monad responsible for resolving a list of constraints.
 type Solver a = StateT [Constraint] (Except TypeError) a
 
-evalSolver :: [Constraint] -> Substitution
-evalSolver cs = case runExcept . evalStateT (solve []) . reverse $ cs of
-  Left te -> error $ show te
-  Right r -> r
+evalSolver :: [Constraint] -> Either TypeError Substitution
+evalSolver = runExcept . evalStateT (solve []) . reverse
 
 -- solve checks the list of constraints for consistency resulting in a
 -- substitution which can be applied to a PolyType.

@@ -1,11 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
-
 module Dzang.Test.DzangSpec where
 
 import           Dzang.Interpreter
-import           Dzang.Language
 import           Dzang.Test.Interpreter
-import           Dzang.Typing.TypeChecker
 import           Dzang.Typing.Types
 import           Test.Hspec                     ( Spec
                                                 , describe

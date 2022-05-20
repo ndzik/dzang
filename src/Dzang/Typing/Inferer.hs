@@ -32,22 +32,20 @@ data InfererState = InfererState
   , defs           :: [(Name, MonoType)]
   }
 
-runInference :: Expression -> MonoType
+runInference :: Expression -> Either TypeError MonoType
 runInference expr =
   case runExcept $ runRWST (infer expr) [] (InfererState 0 []) of
-    Left  te        -> error $ show te
-    Right (t, _, _) -> t
+    Right (r, _, _) -> Right r
+    Left  err       -> Left err
 
-runInference' :: Expression -> (MonoType, InfererState, [Constraint])
-runInference' expr = case runExcept $ runRWST (infer expr) [] (InfererState 0 []) of
-    Left  te        -> error $ show te
-    Right res -> res
+runInference'
+  :: Expression -> Either TypeError (MonoType, InfererState, [Constraint])
+runInference' expr = runExcept $ runRWST (infer expr) [] (InfererState 0 [])
 
-evalInference :: TypingEnv -> Expression -> (MonoType, [Constraint])
+evalInference
+  :: TypingEnv -> Expression -> Either TypeError (MonoType, [Constraint])
 evalInference env expr =
-  case runExcept $ evalRWST (infer expr) env (InfererState 0 []) of
-    Left  te -> error $ show te
-    Right r  -> r
+  runExcept $ evalRWST (infer expr) env (InfererState 0 [])
 
 freshTVar :: Inferer TypeVar
 freshTVar = do
