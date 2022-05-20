@@ -4,6 +4,8 @@ module Dzang.Interpreter.Interpreter
   ( InterpreterState(..)
   , Interpreter
   , forever
+  , forever'
+  , debugLog
   , runInterpreter
   , emptyInterpreterState
   , MonadInterpreter(..)
@@ -91,14 +93,24 @@ typeIt expr = gets typeEnvironment >>= \env -> case runTypeChecker' env expr of
   Left err -> throwError . TE $ err
 
 forever :: MonadInterpreter m => Interpreter m ()
-forever = getInput' >>= parse >>= \expr ->
+forever = forever' (return ())
+
+forever' :: MonadInterpreter m => Interpreter m () -> Interpreter m ()
+forever' eff = getInput' >>= parse >>= \expr ->
   do
-      gets typeEnvironment >>= log'
       pt <- typeIt expr
       v  <- eval expr
       log' (IR v pt :: InterpreterResult ())
     `catchError` (log' . IRE)
-    >>           forever
+    >>           eff
+    >>           forever' eff
+
+debugLog :: MonadInterpreter m => Interpreter m ()
+debugLog =
+    gets typeEnvironment
+    >>= log'
+    >>  gets valueEnvironment
+    >>= log'
 
 -- Interpreter evaluating simple expressions.
 eval :: Monad m => Expression -> Interpreter m Value

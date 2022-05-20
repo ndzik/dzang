@@ -6,7 +6,7 @@ import           Options.Applicative
 
 data CmdLineArgs = CLA
   { interpret :: Bool
-  , debug      :: Bool
+  , debug     :: Bool
   }
 
 main :: IO ()
@@ -17,15 +17,18 @@ main = execParser opts >>= main'
 
 main' :: CmdLineArgs -> IO ()
 main' (CLA False False) = void $ runInterpreter forever emptyInterpreterState
-main' (CLA True  _    ) = undefined
-main' (CLA _     True ) = undefined
+main' (CLA True  _    ) = void $ runInterpreter forever emptyInterpreterState
+main' (CLA _ True) =
+  void $ runInterpreter (forever' debugLog) emptyInterpreterState
 
 cmdLineParser :: Parser CmdLineArgs
 cmdLineParser =
   CLA
     <$> switch
-          (long "interpret" <> short 'i' <> help
-            "Dzang interpreter running in default mode, parsing input and returning their result and type."
+          (  long "interpret"
+          <> short 'i'
+          <> help
+               "Dzang interpreter running in default mode, parsing input and returning their result and type."
           )
     <*> switch
           (  long "debug"
