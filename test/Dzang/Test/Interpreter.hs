@@ -13,19 +13,18 @@ import           Dzang.Typing.Types             ( PolyType )
 newtype MockContext w a = MockContext { ctx :: ReaderT String (Writer [w]) a }
   deriving (Applicative, Functor, Monad)
 
-runMockContext :: MockContext PolyType a -> String -> (a, [PolyType])
+runMockContext :: MockContext String a -> String -> (a, [String])
 runMockContext (MockContext mc) = runWriter . runReaderT mc
 
-instance MonadInterpreter (MockContext PolyType) where
+instance MonadInterpreter (MockContext String) where
   log      = tell'
   getInput = ask'
 
 ask' :: MockContext w String
 ask' = MockContext ask
 
-tell' :: Show a => InterpreterResult a -> MockContext PolyType ()
-tell' (IR _ pt) = MockContext . lift . tell $ [pt]
-tell' (IRE s  ) = error $ "interpreter error: " <> show s
+tell' :: Show a => a -> MockContext String ()
+tell' = MockContext . lift . tell . (: []) . show
 
 parseType :: String -> PolyType
 parseType s = case runTypeChecker [] . parseDzang $ s of

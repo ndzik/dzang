@@ -39,8 +39,8 @@ runInference expr =
     Left  err       -> Left err
 
 runInference'
-  :: Expression -> Either TypeError (MonoType, InfererState, [Constraint])
-runInference' expr = runExcept $ runRWST (infer expr) [] (InfererState 0 [])
+  :: TypingEnv -> Expression -> Either TypeError (MonoType, InfererState, [Constraint])
+runInference' env expr = runExcept $ runRWST (infer expr) env (InfererState 0 [])
 
 evalInference
   :: TypingEnv -> Expression -> Either TypeError (MonoType, [Constraint])

@@ -29,6 +29,9 @@ spec = describe "Dzang TypeChecker" $ do
         (Lambda "x" (Lambda "y" (Add (Variable "x") (Variable "y"))))
       `shouldBe` Right (PType (int :-> (int :-> int)))
   it "rejects ill-typed expressions" testErrors
+  it "updates TypingEnv" $ do
+    runTypeChecker' [] (Definition "a" (litInt 1))
+      `shouldBe` Right (PType int, [("a", PType int)])
 
 testErrors :: Expectation
 testErrors = do

@@ -53,7 +53,7 @@ instance Show a => Show (InterpreterResult a) where
 
 -- MonadInterpreter allows injecting the concrete monad instance.
 class Monad m => MonadInterpreter m where
-  log :: Show a => InterpreterResult a -> m ()
+  log :: Show a => a -> m ()
   getInput :: m String
 
 instance MonadInterpreter IO where
@@ -66,7 +66,7 @@ pretty a = putStrLn $ "▷ " <> show a
 getInput' :: MonadInterpreter m => Interpreter m String
 getInput' = lift . lift $ getInput
 
-log' :: (Show a, MonadInterpreter m) => InterpreterResult a -> Interpreter m ()
+log' :: (Show a, MonadInterpreter m) => a -> Interpreter m ()
 log' = lift . lift . log
 
 runInterpreter
@@ -93,29 +93,35 @@ typeIt expr = gets typeEnvironment >>= \env -> case runTypeChecker' env expr of
 forever :: MonadInterpreter m => Interpreter m ()
 forever = getInput' >>= parse >>= \expr ->
   do
+      gets typeEnvironment >>= log'
       pt <- typeIt expr
       v  <- eval expr
-      log' (IR v pt :: InterpreterResult InterpreterError)
+      log' (IR v pt :: InterpreterResult ())
     `catchError` (log' . IRE)
     >>           forever
 
 -- Interpreter evaluating simple expressions.
 eval :: Monad m => Expression -> Interpreter m Value
-eval (Add lhs rhs) = evalAdd <$> eval lhs <*> eval rhs >>= handlePrimitive
-eval (Sub lhs rhs) = evalSub <$> eval lhs <*> eval rhs >>= handlePrimitive
-eval (Mul lhs rhs) = evalMul <$> eval lhs <*> eval rhs >>= handlePrimitive
-eval (Div lhs rhs) = evalDiv <$> eval lhs <*> eval rhs >>= handlePrimitive
-eval (Literal lit) = evalLiteral lit
-eval app@(Application _ _) = evalApplication [] app
-eval (Variable vname) = evalVariable vname
-eval (Lambda vname expr) = evalLambda vname expr
-eval (Module _ _) = throwError $ EE "modules not supported (yet)"
-eval (Definition n expr) = evalDefinition n expr
+eval (    Add lhs rhs          ) = evalWithPrimitive evalAdd lhs rhs
+eval (    Sub lhs rhs          ) = evalWithPrimitive evalSub lhs rhs
+eval (    Mul lhs rhs          ) = evalWithPrimitive evalMul lhs rhs
+eval (    Div lhs rhs          ) = evalWithPrimitive evalDiv lhs rhs
+eval (    Literal lit          ) = evalLiteral lit
+eval app@(Application _ _      ) = evalApplication [] app
+eval (    Variable vname       ) = evalVariable vname
+eval (    Lambda     vname expr) = evalLambda vname expr
+eval (    Module     _     _   ) = throwError $ EE "modules not supported (yet)"
+eval (    Definition n     expr) = evalDefinition n expr
 
-handlePrimitive
-  :: Monad m => Either InterpreterError Value -> Interpreter m Value
-handlePrimitive (Right v  ) = return v
-handlePrimitive (Left  err) = throwError err
+evalWithPrimitive
+  :: Monad m
+  => (Value -> Value -> Either InterpreterError Value)
+  -> Expression
+  -> Expression
+  -> Interpreter m Value
+evalWithPrimitive op lhs rhs = op <$> eval lhs <*> eval rhs >>= \case
+  Right v   -> return v
+  Left  err -> throwError err
 
 evalLiteral :: Monad m => Lit -> Interpreter m Value
 evalLiteral (LitInt  i) = return $ VInt i

@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 module Dzang.Typing.TypeChecker where
 
 import           Data.Bifunctor                 ( second )
@@ -17,7 +15,7 @@ runTypeChecker env expr = case evalInference env expr of
 
 runTypeChecker'
   :: TypingEnv -> Expression -> Either TypeError (PolyType, TypingEnv)
-runTypeChecker' env expr = case runInference' expr of
+runTypeChecker' env expr = case runInference' env expr of
   Right (mt, InfererState _ ds, cs) -> evalSolver cs >>= \s ->
     let env' = map (second $ generalize . apply s) ds ++ env
     in  Right (normalize . generalize $ apply s mt, env')
