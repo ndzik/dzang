@@ -1,6 +1,7 @@
 module Dzang.Typing.Error where
 
-import Dzang.Language
+import Data.Fix (Fix (..))
+import Dzang.AST
 import Dzang.Typing.Types
 import Text.Printf
 
@@ -12,8 +13,8 @@ data TypeError
   deriving (Eq)
 
 instance Show TypeError where
-  show (UnsupportedExprError (Module _ _)) = "modules do not have a type"
-  show (UnsupportedExprError (Definition _ _)) = "definitions do not have a type"
+  show (UnsupportedExprError (Fix (Module _ _))) = "modules do not have a type"
+  show (UnsupportedExprError (Fix (Definition _ _))) = "definitions do not have a type"
   show (UnsupportedExprError expr) = printf "expression does not have a type: %s" (show expr)
   show (UnboundVariableError n) = "unbound variable encountered: " <> n
   show (MismatchedTypesError mt1 mt2) = printf "unification error: mismatched types %s ~ %s" (show mt1) (show mt2)

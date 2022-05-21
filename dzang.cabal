@@ -27,6 +27,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Dzang
                      , Dzang.Language
+                     , Dzang.AST
+                     , Dzang.Fix
                      , Dzang.Interpreter.Interpreter
                      , Dzang.Interpreter.Error
                      , Dzang.Typing.TypeChecker
@@ -39,6 +41,9 @@ library
                      , mtl
                      , dzarser
                      , containers
+                     , recursion-schemes
+                     , data-fix
+                     , deriving-compat
 
 executable dzang-exe
   import: shared
