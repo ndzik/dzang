@@ -20,10 +20,11 @@ where
 import Control.Monad.Except hiding (forever)
 import Control.Monad.State hiding (forever)
 import Data.Fix (Fix (..))
+import Data.Functor.Foldable (cata)
 import Data.List
+import Dzang.AST
 import Dzang.Interpreter.Error
 import Dzang.Language
-import Dzang.AST
 import Dzang.Typing.TypeChecker (runTypeChecker')
 import Dzang.Typing.Types
 import Prelude hiding (log)
@@ -170,21 +171,14 @@ evalLambda :: Monad m => Name -> Expression -> Interpreter m Value
 evalLambda _ = eval
 
 evalApplication :: Monad m => [Expression] -> Expression -> Interpreter m Value
-evalApplication params (Fix (Application inner outer)) =
-  evalApplication (outer : params) inner
-evalApplication (p : ps) (Fix (Lambda var body@(Fix (Lambda _ _)))) =
-  addToValueEnv (var, p) >> evalApplication ps body
-evalApplication (p : _) (Fix (Lambda var body)) =
-  addToValueEnv (var, p) >> evalLambda var body
-evalApplication params (Fix (Variable var)) =
-  gets valueEnvironment >>= \env ->
-    case lookup var env of
-      Just lambda@(Fix (Lambda _ _)) -> evalApplication params lambda
-      _ -> throwError $ EE "applying arguments to non function"
-evalApplication _ _ = throwError $ EE "error applying arguments to function"
-
--- evalApplication ps (Fix (Application body arg)) = evalApplication (arg : ps) body
--- evalApplication ps (Fix (Lambda v body)) = undefined
+evalApplication ps (Fix (Application body arg)) = evalApplication (arg : ps) body
+evalApplication (p : ps) (Fix (Lambda v body)) = replace v p body >>= evalApplication ps
+evalApplication ps (Fix (Variable n)) =
+  gets (lookup n . valueEnvironment) >>= \case
+    Just e -> evalApplication ps e
+    _ -> throwError $ EE "applying arguments to function"
+evalApplication [] e = eval e
+evalApplication _ _ = throwError $ EE "applying arguments to function"
 
 evalDefinition :: Monad m => Name -> Expression -> Interpreter m Value
 evalDefinition n expr = addToValueEnv (n, expr) >> return (VFun . mkVariable $ n)
@@ -193,5 +187,10 @@ addToValueEnv :: Monad m => (Name, Expression) -> Interpreter m ()
 addToValueEnv i =
   modify (\s@(InterpreterState env _) -> s {valueEnvironment = i : env})
 
-reduce :: Monad m => Expression -> Interpreter m Expression
-reduce _ = undefined
+-- replace replaces each occurrence of the given name with the given expression
+-- in the target expression.
+replace :: Monad m => Name -> Expression -> Expression -> Interpreter m Expression
+replace n e = return . cata alg
+  where
+    alg (Variable n') | n == n' = e
+    alg a = Fix a
