@@ -26,7 +26,7 @@ type FuncStack = [Expression]
 
 type FuncBodyStack = [Expression]
 
-parseDzang :: String -> Expression
+parseDzang :: String -> Either ParseError Expression
 parseDzang = runParser $ parseExpr emptyEnv
 
 debugDzang :: String -> [ParserResult Expression]

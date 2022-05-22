@@ -90,7 +90,9 @@ interpret :: MonadInterpreter m => Interpreter m Value
 interpret = getInput' >>= parse >>= eval
 
 parse :: Monad m => String -> Interpreter m Expression
-parse = return . parseDzang
+parse s = case parseDzang s of
+  Right r -> return r
+  Left err -> throwError . PE $ err
 
 typeIt :: Monad m => Expression -> Interpreter m PolyType
 typeIt expr =
@@ -104,8 +106,9 @@ forever = forever' (return ())
 
 forever' :: MonadInterpreter m => Interpreter m () -> Interpreter m ()
 forever' eff =
-  getInput' >>= parse >>= \expr ->
+  getInput' >>= \s ->
     do
+      expr <- parse s
       pt <- typeIt expr
       v <- eval expr
       log' (IR v pt :: InterpreterResult ())
