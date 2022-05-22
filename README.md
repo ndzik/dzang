@@ -18,14 +18,16 @@ b=2
 ▷ b: int
 a+b
 ▷ 3: int
-f=λg.λx.λy.(g x y)
-▷ f: ∀a b c.( a → b → c ) → a → b → c
-add=λx.λy.(x+y)
+g = λf.λx.λy.(f x y)
+▷ g: ∀a b c.( a → b → c ) → a → b → c
+add = λa.λb.(a+b)
 ▷ add: int → int → int
-add 1 2
-▷ 3: int
-add a b
-▷ 3: int
+h = g add
+▷ h: int → int → int
+add 4 5
+▷ 9: int
+h 5 4
+▷ 9: int
 ```
 
 # Coming
