@@ -4,14 +4,12 @@
 module Dzang.Language where
 
 import Control.Applicative ((<|>))
-import Data.Fix (Fix (..))
 import Data.Functor (($>))
 import Data.List
 import Dzang.AST
 import Dzarser.Parser
 import Text.Printf
 
--- Dzang is a simple typed lambda calculus language with typeinference.
 data Env = Env
   { operators :: OpStack,
     operands :: OprandStack,
@@ -34,14 +32,6 @@ debugDzang = debugParser $ parseExpr emptyEnv
 
 emptyEnv :: Env
 emptyEnv = Env {operators = [], operands = [], parsingFun = False}
-
-viewVars :: ExpressionF (Fix ExpressionF) -> [Name]
-viewVars (Lambda n e) = n : viewVars (unFix e)
-viewVars _ = []
-
-viewBody :: ExpressionF (Fix ExpressionF) -> ExpressionF (Fix ExpressionF)
-viewBody (Lambda _ e) = viewBody (unFix e)
-viewBody x = x
 
 reserved :: [Name]
 reserved = ["module", "where"]
@@ -93,12 +83,10 @@ parseBool :: Parser Lit
 parseBool =
   LitBool
     <$> ( name
-            >>= ( \case
-                    "true" -> return True
-                    "false" -> return False
-                    a ->
-                      parserFail $ printf "expected 'true' or 'false' but got: %s" a
-                )
+            >>= \case
+              "true" -> return True
+              "false" -> return False
+              a -> parserFail $ printf "expected 'true' or 'false' but got: %s" a
         )
 
 data Fixity = Infix | Prefix | Postfix deriving (Show)
