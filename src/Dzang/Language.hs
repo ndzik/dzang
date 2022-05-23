@@ -43,19 +43,6 @@ viewBody :: ExpressionF (Fix ExpressionF) -> ExpressionF (Fix ExpressionF)
 viewBody (Lambda _ e) = viewBody (unFix e)
 viewBody x = x
 
--- instance Show (Fix ExpressionF) where
---   show (Fix (Application expr1 expr2)) = "[" <> show (unFix expr1) <> " " <> show (unFix expr2) <> "]"
---   show l@(Fix (Lambda _ expr)) = "(λ" <> unwords (viewVars (unFix l)) <> "." <> show (viewBody $ unFix expr) <> ")"
---   show (Fix (Variable n)) = n
---   show (Fix (Literal (LitInt v))) = show v
---   show (Fix (Literal (LitBool v))) = show v
---   show (Fix (Module n m)) = show $ "module " <> n <> " where\n" <> show (map (unFix . snd) m)
---   show (Fix (Definition n expr)) = show $ n <> " = " <> show (unFix expr)
---   show (Fix (Add expr1 expr2)) = "(" <> show (unFix expr1) <> "+" <> show (unFix expr2) <> ")"
---   show (Fix (Sub expr1 expr2)) = "(" <> show (unFix expr1) <> "-" <> show (unFix expr2) <> ")"
---   show (Fix (Mul expr1 expr2)) = "(" <> show (unFix expr1) <> "*" <> show (unFix expr2) <> ")"
---   show (Fix (Div expr1 expr2)) = "(" <> show (unFix expr1) <> "/" <> show (unFix expr2) <> ")"
-
 reserved :: [Name]
 reserved = ["module", "where"]
 

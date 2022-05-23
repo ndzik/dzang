@@ -28,7 +28,6 @@ library
   exposed-modules:     Dzang
                      , Dzang.Language
                      , Dzang.AST
-                     , Dzang.Fix
                      , Dzang.Interpreter.Interpreter
                      , Dzang.Interpreter.Error
                      , Dzang.Typing.TypeChecker
