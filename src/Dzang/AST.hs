@@ -42,7 +42,7 @@ instance Eq1 ExpressionF where
   liftEq _ (Variable a) (Variable b) = a == b
   liftEq _ (Literal a) (Literal b) = a == b
   liftEq f (Definition na a) (Definition nb b) = na == nb && f a b
-  liftEq f (Module na a) (Module nb b) = na == nb && and (zipWith (curry (\((n, c), (n', c')) -> n == n' && f c c')) a b)
+  liftEq f (Module na a) (Module nb b) = na == nb && length a == length b && and (zipWith (curry (\((n, c), (n', c')) -> n == n' && f c c')) a b)
   liftEq f (Add a1 a2) (Add b1 b2) = f a1 b1 && f a2 b2
   liftEq f (Sub a1 a2) (Sub b1 b2) = f a1 b1 && f a2 b2
   liftEq f (Mul a1 a2) (Mul b1 b2) = f a1 b1 && f a2 b2
