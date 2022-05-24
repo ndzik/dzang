@@ -7,7 +7,9 @@ import Control.Applicative ((<|>))
 import Data.Functor (($>))
 import Data.List
 import Dzang.AST
-import Dzarser.Parser
+import Dzarser.Base
+import Dzarser.Combinator
+import Dzarser.Stateful.Parser
 import Text.Printf
 
 data Env = Env
@@ -24,11 +26,11 @@ type FuncStack = [Expression]
 
 type FuncBodyStack = [Expression]
 
-parseDzang :: String -> Either ParseError Expression
+parseDzang :: String -> (Either ParseError Expression, ParserState)
 parseDzang = runParser $ parseExpr emptyEnv
 
-debugDzang :: String -> [ParserResult Expression]
-debugDzang = debugParser $ parseExpr emptyEnv
+evalDzang :: String -> Either ParseError Expression
+evalDzang = fst . parseDzang
 
 emptyEnv :: Env
 emptyEnv = Env {operators = [], operands = [], parsingFun = False}

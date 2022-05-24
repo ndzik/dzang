@@ -28,7 +28,7 @@ tell' :: Show a => a -> MockContext String ()
 tell' = MockContext . lift . tell . (: []) . show
 
 parseType :: String -> PolyType
-parseType s = case either error return (parseDzang s) >>= runTypeChecker [] of
+parseType s = case either error return (fst . parseDzang $ s) >>= runTypeChecker [] of
   Right r -> r
   Left err -> error . show $ err
 

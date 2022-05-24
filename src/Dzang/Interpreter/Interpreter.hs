@@ -91,8 +91,8 @@ interpret = getInput' >>= parse >>= eval
 
 parse :: Monad m => String -> Interpreter m Expression
 parse s = case parseDzang s of
-  Right r -> return r
-  Left err -> throwError . PE $ err
+  (Right r, _) -> return r
+  (Left err, _) -> throwError . PE $ err
 
 typeIt :: Monad m => Expression -> Interpreter m PolyType
 typeIt expr =

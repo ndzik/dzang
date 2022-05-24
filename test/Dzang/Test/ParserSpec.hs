@@ -3,7 +3,7 @@ module Dzang.Test.ParserSpec where
 import Data.Foldable
 import Dzang.AST
 import Dzang.Language
-import Dzarser.Parser
+import Dzarser.Stateful.Parser
 import Test.Hspec
   ( Spec,
     SpecWith,
@@ -26,7 +26,7 @@ spec = do
 
 testParseModules :: Expectation
 testParseModules = do
-  runParser parseModule "module TestModule where"
+  evalParser parseModule "module TestModule where"
     `shouldBe` Right (mkModule "TestModule" [])
 
 testParseMath :: SpecWith ()
@@ -39,7 +39,7 @@ testParseMath = do
 testRightAssociativeOperators :: Expectation
 testRightAssociativeOperators = do
   traverse_
-    (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
+    (\(input, expec) -> evalParser (parseExpr emptyEnv) input `shouldBe` expec)
     [ ("1+2+3+4", Right (mkAdd (mkAdd (mkAdd (litInt 1) (litInt 2)) (litInt 3)) (litInt 4))),
       ("1*2*3*4", Right (mkMul (mkMul (mkMul (litInt 1) (litInt 2)) (litInt 3)) (litInt 4)))
     ]
@@ -47,13 +47,13 @@ testRightAssociativeOperators = do
 testLeftAssociativeOperators :: Expectation
 testLeftAssociativeOperators = do
   traverse_
-    (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
+    (\(input, expec) -> evalParser (parseExpr emptyEnv) input `shouldBe` expec)
     [("1-2-3-4", Right (mkSub (mkSub (mkSub (litInt 1) (litInt 2)) (litInt 3)) (litInt 4)))]
 
 testComplexMath :: Expectation
 testComplexMath = do
   traverse_
-    (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
+    (\(input, expec) -> evalParser (parseExpr emptyEnv) input `shouldBe` expec)
     [ ( "2*3-4+5-6+x",
         Right
           ( mkAdd
@@ -84,65 +84,65 @@ testComplexMath = do
 
 testBasicArithmetic :: Expectation
 testBasicArithmetic = do
-  runParser (parseOperator '+' emptyEnv {operands = [litInt 1]}) "+1"
+  evalParser (parseOperator '+' emptyEnv {operands = [litInt 1]}) "+1"
     `shouldBe` Right (mkAdd (litInt 1) (litInt 1))
-  runParser (parseOperator '-' emptyEnv {operands = [litInt 1]}) "-1"
+  evalParser (parseOperator '-' emptyEnv {operands = [litInt 1]}) "-1"
     `shouldBe` Right (mkSub (litInt 1) (litInt 1))
-  runParser (parseOperator '*' emptyEnv {operands = [litInt 1]}) "*1"
+  evalParser (parseOperator '*' emptyEnv {operands = [litInt 1]}) "*1"
     `shouldBe` Right (mkMul (litInt 1) (litInt 1))
-  runParser (parseOperator '/' emptyEnv {operands = [litInt 1]}) "/1"
+  evalParser (parseOperator '/' emptyEnv {operands = [litInt 1]}) "/1"
     `shouldBe` Right (mkDiv (litInt 1) (litInt 1))
-  runParser (parseOperator '+' emptyEnv {operands = [mkVariable "a"]}) "+b"
+  evalParser (parseOperator '+' emptyEnv {operands = [mkVariable "a"]}) "+b"
     `shouldBe` Right (mkAdd (mkVariable "a") (mkVariable "b"))
-  runParser (parseOperator '-' emptyEnv {operands = [mkVariable "a"]}) "-b"
+  evalParser (parseOperator '-' emptyEnv {operands = [mkVariable "a"]}) "-b"
     `shouldBe` Right (mkSub (mkVariable "a") (mkVariable "b"))
-  runParser (parseOperator '*' emptyEnv {operands = [mkVariable "a"]}) "*b"
+  evalParser (parseOperator '*' emptyEnv {operands = [mkVariable "a"]}) "*b"
     `shouldBe` Right (mkMul (mkVariable "a") (mkVariable "b"))
-  runParser (parseOperator '/' emptyEnv {operands = [mkVariable "a"]}) "/b"
+  evalParser (parseOperator '/' emptyEnv {operands = [mkVariable "a"]}) "/b"
     `shouldBe` Right (mkDiv (mkVariable "a") (mkVariable "b"))
-  runParser (parseExpr emptyEnv) "1+1" `shouldBe` Right (mkAdd (litInt 1) (litInt 1))
-  runParser (parseExpr emptyEnv) "1-1" `shouldBe` Right (mkSub (litInt 1) (litInt 1))
-  runParser (parseExpr emptyEnv) "1*1" `shouldBe` Right (mkMul (litInt 1) (litInt 1))
-  runParser (parseExpr emptyEnv) "1/1" `shouldBe` Right (mkDiv (litInt 1) (litInt 1))
-  runParser (parseExpr emptyEnv) "a+b"
+  evalParser (parseExpr emptyEnv) "1+1" `shouldBe` Right (mkAdd (litInt 1) (litInt 1))
+  evalParser (parseExpr emptyEnv) "1-1" `shouldBe` Right (mkSub (litInt 1) (litInt 1))
+  evalParser (parseExpr emptyEnv) "1*1" `shouldBe` Right (mkMul (litInt 1) (litInt 1))
+  evalParser (parseExpr emptyEnv) "1/1" `shouldBe` Right (mkDiv (litInt 1) (litInt 1))
+  evalParser (parseExpr emptyEnv) "a+b"
     `shouldBe` Right (mkAdd (mkVariable "a") (mkVariable "b"))
-  runParser (parseExpr emptyEnv) "a-b"
+  evalParser (parseExpr emptyEnv) "a-b"
     `shouldBe` Right (mkSub (mkVariable "a") (mkVariable "b"))
-  runParser (parseExpr emptyEnv) "a*b"
+  evalParser (parseExpr emptyEnv) "a*b"
     `shouldBe` Right (mkMul (mkVariable "a") (mkVariable "b"))
-  runParser (parseExpr emptyEnv) "a/b"
+  evalParser (parseExpr emptyEnv) "a/b"
     `shouldBe` Right (mkDiv (mkVariable "a") (mkVariable "b"))
-  runParser (parseExpr emptyEnv) "1*2*3+4"
+  evalParser (parseExpr emptyEnv) "1*2*3+4"
     `shouldBe` Right (mkAdd (mkMul (mkMul (litInt 1) (litInt 2)) (litInt 3)) (litInt 4))
 
 testParseVariables :: Expectation
 testParseVariables = do
-  runParser parseVariable "xyz" `shouldBe` Right (mkVariable "xyz")
+  evalParser parseVariable "xyz" `shouldBe` Right (mkVariable "xyz")
 
 testParseLambdas :: Expectation
 testParseLambdas = do
   map
-    (runParser (parseLambda emptyEnv))
+    (evalParser (parseLambda emptyEnv))
     ["λa.a", "λ a.a", "λ a .a", "λa. a", "λ a . a"]
     `shouldSatisfy` all (== Right (mkLambda "a" (mkVariable "a")))
-  runParser (parseLambda emptyEnv) "λa.λb.a"
+  evalParser (parseLambda emptyEnv) "λa.λb.a"
     `shouldBe` Right (mkLambda "a" (mkLambda "b" (mkVariable "a")))
-  runParser (parseLambda emptyEnv) "λa. λb. a"
+  evalParser (parseLambda emptyEnv) "λa. λb. a"
     `shouldBe` Right (mkLambda "a" (mkLambda "b" (mkVariable "a")))
 
 testParseDefinitions :: Expectation
 testParseDefinitions = do
   map
-    (runParser (parseDef emptyEnv))
+    (evalParser (parseDef emptyEnv))
     ["id = λa.a", "id=λa.a", "id =λa.a", "id= λa.a"]
     `shouldSatisfy` all (== Right (mkDefinition "id" (mkLambda "a" (mkVariable "a"))))
-  runParser (parseDef emptyEnv) "v = 42" `shouldBe` Right (mkDefinition "v" (litInt 42))
-  runParser (parseDef emptyEnv) "v=1+2"
+  evalParser (parseDef emptyEnv) "v = 42" `shouldBe` Right (mkDefinition "v" (litInt 42))
+  evalParser (parseDef emptyEnv) "v=1+2"
     `shouldBe` Right (mkDefinition "v" (mkAdd (litInt 1) (litInt 2)))
 
 testParseApplications :: Expectation
 testParseApplications = do
-  runParser
+  evalParser
     (parseApp emptyEnv (mkLambda "x" (mkAdd (mkVariable "x") (litInt 1))))
     " 2"
     `shouldBe` Right
@@ -150,13 +150,13 @@ testParseApplications = do
           (mkLambda "x" (mkAdd (mkVariable "x") (litInt 1)))
           (litInt 2)
       )
-  runParser (parseExpr emptyEnv) "λx.x+1 2"
+  evalParser (parseExpr emptyEnv) "λx.x+1 2"
     `shouldBe` Right
       ( mkApplication
           (mkLambda "x" (mkAdd (mkVariable "x") (litInt 1)))
           (litInt 2)
       )
-  runParser (parseExpr emptyEnv) "λf.λx.λy.(f x y)"
+  evalParser (parseExpr emptyEnv) "λf.λx.λy.(f x y)"
     `shouldBe` Right
       ( mkLambda
           "f"
@@ -171,18 +171,20 @@ testParseApplications = do
 
 testParseBrackets :: Expectation
 testParseBrackets = do
-  runParser (parseBracket emptyEnv) "(a+a)"
+  evalParser (parseBracket emptyEnv) "(a+a)"
     `shouldBe` Right (mkAdd (mkVariable "a") (mkVariable "a"))
   traverse_
-    (\(input, expec) -> runParser (parseExpr emptyEnv) input `shouldBe` expec)
+    (\(input, expec) -> evalParser (parseExpr emptyEnv) input `shouldBe` expec)
     [ ("(a+a)*a", Right (mkMul (mkAdd (mkVariable "a") (mkVariable "a")) (mkVariable "a"))),
       ( "(λa.λb.a) 42",
         Right (mkApplication (mkLambda "a" (mkLambda "b" (mkVariable "a"))) (litInt 42))
       ),
       ( "(λa.λb.a) 42 69",
-        Right (mkApplication
-          (mkApplication (mkLambda "a" (mkLambda "b" (mkVariable "a"))) (litInt 42))
-          (litInt 69))
+        Right
+          ( mkApplication
+              (mkApplication (mkLambda "a" (mkLambda "b" (mkVariable "a"))) (litInt 42))
+              (litInt 69)
+          )
       ),
       ( "f 42 69",
         Right (mkApplication (mkApplication (mkVariable "f") (litInt 42)) (litInt 69))
