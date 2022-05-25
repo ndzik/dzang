@@ -53,17 +53,17 @@ instance Eq1 ExpressionF where
 instance {-# OVERLAPPING #-} Show Expression where
   show = cata alg
     where
-      alg (Application (col, line) expr1 expr2) = "{" <> show col <> "," <> show line <> "}" <> "[" <> expr1 <> " " <> expr2 <> "]"
-      alg (Lambda (col, line) n expr) = "{" <> show col <> "," <> show line <> "}" <> "(λ" <> n <> "." <> expr <> ")"
-      alg (Variable (col, line) n) = "{" <> show col <> "," <> show line <> "}" <> n
-      alg (Literal (col, line) (LitInt v)) = "{" <> show col <> "," <> show line <> "}" <> show v
-      alg (Literal (col, line) (LitBool v)) = "{" <> show col <> "," <> show line <> "}" <> show v
+      alg (Application _ expr1 expr2) = "[" <> expr1 <> " " <> expr2 <> "]"
+      alg (Lambda _ n expr) = "(λ" <> n <> "." <> expr <> ")"
+      alg (Variable _ n) = n
+      alg (Literal _ (LitInt v)) = show v
+      alg (Literal _ (LitBool v)) = show v
       alg (Module n m) = "module" <> n <> "where\n" <> show (map snd m)
-      alg (Definition (col, line) n expr) = "{" <> show col <> "," <> show line <> "}" <> n <> " = " <> expr
-      alg (Add (col, line) expr1 expr2) = "{" <> show col <> "," <> show line <> "}" <> "(" <> expr1 <> "+" <> expr2 <> ")"
-      alg (Sub (col, line) expr1 expr2) = "{" <> show col <> "," <> show line <> "}" <> "(" <> expr1 <> "-" <> expr2 <> ")"
-      alg (Mul (col, line) expr1 expr2) = "{" <> show col <> "," <> show line <> "}" <> "(" <> expr1 <> "*" <> expr2 <> ")"
-      alg (Div (col, line) expr1 expr2) = "{" <> show col <> "," <> show line <> "}" <> "(" <> expr1 <> "/" <> expr2 <> ")"
+      alg (Definition _ n expr) = n <> " = " <> expr
+      alg (Add _ expr1 expr2) = "(" <> expr1 <> "+" <> expr2 <> ")"
+      alg (Sub _ expr1 expr2) = "(" <> expr1 <> "-" <> expr2 <> ")"
+      alg (Mul _ expr1 expr2) = "(" <> expr1 <> "*" <> expr2 <> ")"
+      alg (Div _ expr1 expr2) = "(" <> expr1 <> "/" <> expr2 <> ")"
 
 litInt :: (Int, Int) -> Integer -> Expression
 litInt p i = Fix . Literal p $ LitInt i
