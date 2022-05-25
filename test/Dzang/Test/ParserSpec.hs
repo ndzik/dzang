@@ -15,7 +15,6 @@ import Test.Hspec.Expectations.Pretty
 spec :: Spec
 spec = do
   describe "Dzang Parser" $ do
-    it "parses module declarations" testParseModules
     it "parses variables" testParseVariables
     it "parses lambdas" testParseLambdas
     it "parses definitions" testParseDefinitions
@@ -26,11 +25,6 @@ spec = do
 
 defPos :: (Int, Int)
 defPos = (1, 1)
-
-testParseModules :: Expectation
-testParseModules = do
-  evalParser parseModule "module TestModule where"
-    `shouldBe` Right (mkModule "TestModule" [])
 
 testParseMath :: SpecWith ()
 testParseMath = do
@@ -148,6 +142,8 @@ testParseLambdas = do
     `shouldBe` Right (mkLambda (1, 1) "a" (mkLambda (1, 4) "b" (mkVariable (1, 7) "a")))
   evalParser (parseLambda emptyEnv) "λa. λb. a"
     `shouldBe` Right (mkLambda (1, 1) "a" (mkLambda (1, 5) "b" (mkVariable (1, 9) "a")))
+  evalParser (parseLambda emptyEnv) "λa.λ.a"
+    `shouldBe` Left "error at [Col 1 | Line 5]: expected name but got: '.' at: '.a'"
 
 testParseDefinitions :: Expectation
 testParseDefinitions = do

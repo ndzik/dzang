@@ -28,6 +28,7 @@ library
   exposed-modules:     Dzang
                      , Dzang.Language
                      , Dzang.AST
+                     , Dzang.Project
                      , Dzang.Interpreter.Interpreter
                      , Dzang.Interpreter.Error
                      , Dzang.Typing.TypeChecker
@@ -43,6 +44,7 @@ library
                      , recursion-schemes
                      , data-fix
                      , deriving-compat
+                     , directory
 
 executable dzang-exe
   import: shared
@@ -71,6 +73,8 @@ test-suite dzang-test
                     , Dzang.Test.InterpreterSpec
                     , Dzang.Test.InfererSpec
                     , Dzang.Test.SolverSpec
+                    , Dzang.Test.ProjectSpec
+                    , Dzang.Test.Project
                     , Dzang.Test.TypeCheckerSpec
                     , Dzang.Test.Interpreter
   build-depends:      hspec

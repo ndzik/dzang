@@ -13,7 +13,6 @@ data TypeError
   deriving (Eq)
 
 instance Show TypeError where
-  show (UnsupportedExprError (Fix Module {})) = "modules do not have a type"
   show (UnsupportedExprError (Fix Definition {})) = "definitions do not have a type"
   show (UnsupportedExprError expr) = printf "expression does not have a type: %s" (show expr)
   show (UnboundVariableError n) = "unbound variable encountered: " <> n

@@ -24,8 +24,6 @@ data ExpressionF r
   | Variable (Int, Int) Name
   | Literal (Int, Int) Lit
   | Definition (Int, Int) Name r
-  | -- Do I want it to be possible to bind `Module`s to variables?
-    Module Name [(Name, r)]
   | -- Primitives
     Add (Int, Int) r r
   | Sub (Int, Int) r r
@@ -43,7 +41,6 @@ instance Eq1 ExpressionF where
   liftEq _ (Variable pos1 a) (Variable pos2 b) = pos1 == pos2 && a == b
   liftEq _ (Literal pos1 a) (Literal pos2 b) = pos1 == pos2 && a == b
   liftEq f (Definition pos1 na a) (Definition pos2 nb b) = pos1 == pos2 && na == nb && f a b
-  liftEq f (Module na a) (Module nb b) = na == nb && length a == length b && and (zipWith (curry (\((n, c), (n', c')) -> n == n' && f c c')) a b)
   liftEq f (Add pos1 a1 a2) (Add pos2 b1 b2) = pos1 == pos2 && f a1 b1 && f a2 b2
   liftEq f (Sub pos1 a1 a2) (Sub pos2 b1 b2) = pos1 == pos2 && f a1 b1 && f a2 b2
   liftEq f (Mul pos1 a1 a2) (Mul pos2 b1 b2) = pos1 == pos2 && f a1 b1 && f a2 b2
@@ -53,17 +50,16 @@ instance Eq1 ExpressionF where
 instance {-# OVERLAPPING #-} Show Expression where
   show = cata alg
     where
-      alg (Application _ expr1 expr2) = "[" <> expr1 <> " " <> expr2 <> "]"
-      alg (Lambda _ n expr) = "(λ" <> n <> "." <> expr <> ")"
-      alg (Variable _ n) = n
-      alg (Literal _ (LitInt v)) = show v
-      alg (Literal _ (LitBool v)) = show v
-      alg (Module n m) = "module" <> n <> "where\n" <> show (map snd m)
-      alg (Definition _ n expr) = n <> " = " <> expr
-      alg (Add _ expr1 expr2) = "(" <> expr1 <> "+" <> expr2 <> ")"
-      alg (Sub _ expr1 expr2) = "(" <> expr1 <> "-" <> expr2 <> ")"
-      alg (Mul _ expr1 expr2) = "(" <> expr1 <> "*" <> expr2 <> ")"
-      alg (Div _ expr1 expr2) = "(" <> expr1 <> "/" <> expr2 <> ")"
+      alg (Application po expr1 expr2) = show po <> " : " <> "[" <> expr1 <> " " <> expr2 <> "]"
+      alg (Lambda po n expr) = show po <> " : " <> "(λ" <> n <> "." <> expr <> ")"
+      alg (Variable po n) = show po <> " : " <> n
+      alg (Literal po (LitInt v)) = show po <> " : " <> show v
+      alg (Literal po (LitBool v)) = show po <> " : " <> show v
+      alg (Definition po n expr) = show po <> " : " <> n <> " = " <> expr
+      alg (Add po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "+" <> expr2 <> ")"
+      alg (Sub po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "-" <> expr2 <> ")"
+      alg (Mul po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "*" <> expr2 <> ")"
+      alg (Div po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "/" <> expr2 <> ")"
 
 litInt :: (Int, Int) -> Integer -> Expression
 litInt p i = Fix . Literal p $ LitInt i
@@ -85,9 +81,6 @@ mkLiteral p = Fix . Literal p
 
 mkDefinition :: (Int, Int) -> Name -> Expression -> Expression
 mkDefinition p n e = Fix $ Definition p n e
-
-mkModule :: Name -> [(Name, Expression)] -> Expression
-mkModule n m = Fix $ Module n m
 
 mkAdd :: (Int, Int) -> Expression -> Expression -> Expression
 mkAdd p a b = Fix $ Add p a b
