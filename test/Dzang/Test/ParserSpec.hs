@@ -142,6 +142,8 @@ testParseLambdas = do
     `shouldBe` Right (mkLambda (1, 1) "a" (mkLambda (1, 4) "b" (mkVariable (1, 7) "a")))
   evalParser (parseLambda emptyEnv) "λa. λb. a"
     `shouldBe` Right (mkLambda (1, 1) "a" (mkLambda (1, 5) "b" (mkVariable (1, 9) "a")))
+  evalParser (parseLambda emptyEnv) "λa.λ.a"
+    `shouldBe` Left "error at [Col 1 | Line 5]: expected name but got: '.' at: '.a'"
 
 testParseDefinitions :: Expectation
 testParseDefinitions = do

@@ -114,13 +114,22 @@ isRightAssoc c = case find (\(op, _, _, _) -> c == op) operatorsMap of
   Just (_, _, RightAssoc, _) -> True
   _ -> False
 
+parseTopLevelDefinitions :: Env -> Parser [Expression]
+parseTopLevelDefinitions env =
+  parseNothing
+    <|> ((optional spaces *> parseDef env) >>= \expr -> (expr :) <$> parseTopLevelDefinitions env)
+
+parseNothing :: Parser [Expression]
+parseNothing = nothing >> return []
+
 parseExpr :: Env -> Parser Expression
 parseExpr env@(Env _ ds pf) =
   parseOperand env >>= \res ->
     peek >>= \case
       Nothing -> return . head . operands $ printAll env {operands = res : ds} -- EOF
       Just c
-        | (c == ' ' && pf) || c == ')' ->
+        -- Functions have to be defined in a continous paragraph.
+        | (c == ' ' && pf) || c == ')' || c == '\n' ->
           return . head . operands $
             printAll
               env
@@ -166,11 +175,12 @@ printAll env = printAll . popAndPrint $ env
 
 parseOperand :: Env -> Parser Expression
 parseOperand env =
-  parseBracket emptyEnv
-    <|> parseLiteral
-    <|> parseLambda emptyEnv
-    <|> parseDef env
-    <|> parseVariable
+  peek >>= \case
+    Just 'λ' -> parseLambda env
+    _ -> parseBracket emptyEnv
+        <|> parseLiteral
+        <|> parseDef env
+        <|> parseVariable
 
 parseBracket :: Env -> Parser Expression
 parseBracket env =

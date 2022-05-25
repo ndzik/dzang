@@ -50,16 +50,16 @@ instance Eq1 ExpressionF where
 instance {-# OVERLAPPING #-} Show Expression where
   show = cata alg
     where
-      alg (Application _ expr1 expr2) = "[" <> expr1 <> " " <> expr2 <> "]"
-      alg (Lambda _ n expr) = "(λ" <> n <> "." <> expr <> ")"
-      alg (Variable _ n) = n
-      alg (Literal _ (LitInt v)) = show v
-      alg (Literal _ (LitBool v)) = show v
-      alg (Definition _ n expr) = n <> " = " <> expr
-      alg (Add _ expr1 expr2) = "(" <> expr1 <> "+" <> expr2 <> ")"
-      alg (Sub _ expr1 expr2) = "(" <> expr1 <> "-" <> expr2 <> ")"
-      alg (Mul _ expr1 expr2) = "(" <> expr1 <> "*" <> expr2 <> ")"
-      alg (Div _ expr1 expr2) = "(" <> expr1 <> "/" <> expr2 <> ")"
+      alg (Application po expr1 expr2) = show po <> " : " <> "[" <> expr1 <> " " <> expr2 <> "]"
+      alg (Lambda po n expr) = show po <> " : " <> "(λ" <> n <> "." <> expr <> ")"
+      alg (Variable po n) = show po <> " : " <> n
+      alg (Literal po (LitInt v)) = show po <> " : " <> show v
+      alg (Literal po (LitBool v)) = show po <> " : " <> show v
+      alg (Definition po n expr) = show po <> " : " <> n <> " = " <> expr
+      alg (Add po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "+" <> expr2 <> ")"
+      alg (Sub po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "-" <> expr2 <> ")"
+      alg (Mul po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "*" <> expr2 <> ")"
+      alg (Div po expr1 expr2) = show po <> " : " <> "(" <> expr1 <> "/" <> expr2 <> ")"
 
 litInt :: (Int, Int) -> Integer -> Expression
 litInt p i = Fix . Literal p $ LitInt i
