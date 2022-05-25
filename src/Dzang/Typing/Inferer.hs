@@ -68,16 +68,16 @@ type TypingEnv = [(Name, PolyType)]
 
 infer :: Expression -> Inferer MonoType
 infer expr = case expr of
-  Fix (Variable n) -> inferVar n
-  Fix (Lambda n e) -> inferLambda n e
-  Fix (Application e1 e2) -> inferApplication e1 e2
-  Fix (Literal lit) -> inferLiteral lit
-  m@(Fix (Module _ _)) -> throwError $ UnsupportedExprError m
-  Fix (Definition n e) -> inferDefinition n e
-  Fix (Add lhs rhs) -> inferOperator AddOp lhs rhs
-  Fix (Sub lhs rhs) -> inferOperator SubOp lhs rhs
-  Fix (Mul lhs rhs) -> inferOperator MulOp lhs rhs
-  Fix (Div lhs rhs) -> inferOperator DivOp lhs rhs
+  Fix (Variable _ n) -> inferVar n
+  Fix (Lambda _ n e) -> inferLambda n e
+  Fix (Application _ e1 e2) -> inferApplication e1 e2
+  Fix (Literal _ lit) -> inferLiteral lit
+  m@(Fix Module {}) -> throwError $ UnsupportedExprError m
+  Fix (Definition _ n e) -> inferDefinition n e
+  Fix (Add _ lhs rhs) -> inferOperator AddOp lhs rhs
+  Fix (Sub _ lhs rhs) -> inferOperator SubOp lhs rhs
+  Fix (Mul _ lhs rhs) -> inferOperator MulOp lhs rhs
+  Fix (Div _ lhs rhs) -> inferOperator DivOp lhs rhs
 
 inferVar :: Name -> Inferer MonoType
 inferVar n = ask >>= flip resolveType n

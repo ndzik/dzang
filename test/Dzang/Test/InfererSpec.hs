@@ -20,17 +20,20 @@ spec = do
   describe "Unification" $ do
     it "unifies functions" testFunctionUnification
 
+defPos :: (Int, Int)
+defPos = (0,0)
+
 testPrimitives :: Expectation
 testPrimitives = do
-  evalInference [] (mkLiteral (LitInt 1)) `shouldBe` Right (int, [])
-  evalInference [] (mkLiteral (LitBool False)) `shouldBe` Right (bool, [])
-  evalInference [] (mkLambda "x" (mkVariable "x"))
+  evalInference [] (mkLiteral defPos (LitInt 1)) `shouldBe` Right (int, [])
+  evalInference [] (mkLiteral defPos (LitBool False)) `shouldBe` Right (bool, [])
+  evalInference [] (mkLambda defPos "x" (mkVariable defPos "x"))
     `shouldBe` Right (typevar "a1" :-> typevar "a1", [])
-  evalInference [] (mkLambda "x" (mkLiteral (LitInt 1)))
+  evalInference [] (mkLambda defPos "x" (mkLiteral defPos (LitInt 1)))
     `shouldBe` Right (typevar "a1" :-> int, [])
-  evalInference [] (mkLambda "x" (mkLambda "y" (mkLiteral (LitInt 1))))
+  evalInference [] (mkLambda defPos "x" (mkLambda defPos "y" (mkLiteral defPos (LitInt 1))))
     `shouldBe` Right (typevar "a1" :-> (typevar "a2" :-> int), [])
-  evalInference [] (mkLambda "x" (mkAdd (litInt 1) (mkVariable "x")))
+  evalInference [] (mkLambda defPos "x" (mkAdd defPos (litInt defPos 1) (mkVariable defPos "x")))
     `shouldBe` Right (typevar "a1" :-> int, [(int :-> int, int :-> typevar "a1")])
   -- λx.1+x 1 = 2
   -- a1 -> int
@@ -38,7 +41,7 @@ testPrimitives = do
   -- (a1 -> int) ~ (int -> a2) <- inferApplication
   evalInference
     []
-    (mkApplication (mkLambda "x" (mkAdd (litInt 1) (mkVariable "x"))) (litInt 1))
+    (mkApplication defPos (mkLambda defPos "x" (mkAdd defPos (litInt defPos 1) (mkVariable defPos "x"))) (litInt defPos 1))
     `shouldBe` Right
       ( typevar "a2",
         [ (int :-> int, int :-> typevar "a1"),
@@ -48,8 +51,8 @@ testPrimitives = do
 
 testIntOperations :: Expectation
 testIntOperations = do
-  runInference (mkAdd (mkLiteral (LitInt 1)) (mkLiteral (LitInt 1))) `shouldBe` Right int
-  evalInference [] (mkDiv (mkLiteral (LitInt 1)) (mkLiteral (LitBool False)))
+  runInference (mkAdd defPos (mkLiteral defPos (LitInt 1)) (mkLiteral defPos (LitInt 1))) `shouldBe` Right int
+  evalInference [] (mkDiv defPos (mkLiteral defPos (LitInt 1)) (mkLiteral defPos (LitBool False)))
     `shouldBe` Right (int, [(int :-> int, int :-> bool)])
 
 testFunctionUnification :: Expectation

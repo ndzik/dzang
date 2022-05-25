@@ -18,7 +18,7 @@ data Env = Env
     parsingFun :: Bool
   }
 
-type OpStack = [Char]
+type OpStack = [(Char, (Int, Int))]
 
 type OprandStack = [Expression]
 
@@ -62,7 +62,8 @@ parseModule =
 parseDef :: Env -> Parser Expression
 parseDef env =
   mkDefinition
-    <$> name
+    <$> parserPos
+    <*> name
     <*> ((optional spaces *> parseBindDef <* optional spaces) *> parseExpr env)
 
 parseBindDef :: Parser Char
@@ -73,10 +74,11 @@ parseBindDef =
 parseLiteral :: Parser Expression
 parseLiteral =
   mkLiteral
-    <$> ( parseInt <|> parseBool
-            <|> parserFail
-              "expecting literal of either Bool or Int"
-        )
+    <$> parserPos
+      <*> ( parseInt <|> parseBool
+              <|> parserFail
+                "expecting literal of either Bool or Int"
+          )
 
 parseInt :: Parser Lit
 parseInt = LitInt <$> number
@@ -151,12 +153,14 @@ parseExpr env@(Env _ ds pf) =
 -- Shunting-Yard-Algorithm:
 -- http://mathcenter.oxford.emory.edu/site/cs171/shuntingYardAlgorithm/
 parseOperator :: Char -> Env -> Parser Expression
-parseOperator cop env@(Env [] _ _) =
-  item >> parseExpr env {operators = [cop]}
+parseOperator cop env@(Env [] _ _) = do
+  pos <- parserPos
+  item >> parseExpr env {operators = [(cop, pos)]}
 parseOperator cop env@(Env os _ _)
   | (curPrec os < precedence cop)
-      || (curPrec os == precedence cop && isRightAssoc cop) =
-    item >> parseExpr env {operators = cop : os}
+      || (curPrec os == precedence cop && isRightAssoc cop) = do
+    pos <- parserPos
+    item >> parseExpr env {operators = (cop, pos) : os}
   | (curPrec os > precedence cop)
       || (curPrec os == precedence cop && isLeftAssoc cop) =
     parseOperator cop $ popAndPrint env
@@ -164,16 +168,16 @@ parseOperator _ _ = error "unhandled case in parseOperator"
 
 popAndPrint :: Env -> Env
 popAndPrint env@(Env [] [_] _) = env
-popAndPrint env@(Env ('+' : os) (rhs : lhs : ds) _) =
-  env {operators = os, operands = mkAdd lhs rhs : ds}
-popAndPrint env@(Env ('-' : os) (rhs : lhs : ds) _) =
-  env {operators = os, operands = mkSub lhs rhs : ds}
-popAndPrint env@(Env ('/' : os) (rhs : lhs : ds) _) =
-  env {operators = os, operands = mkDiv lhs rhs : ds}
-popAndPrint env@(Env ('*' : os) (rhs : lhs : ds) _) =
-  env {operators = os, operands = mkMul lhs rhs : ds}
-popAndPrint env@(Env (' ' : os) (rhs : lhs : ds) _) =
-  env {operators = os, operands = mkApplication lhs rhs : ds}
+popAndPrint env@(Env (('+', pos) : os) (rhs : lhs : ds) _) =
+  env {operators = os, operands = mkAdd pos lhs rhs : ds}
+popAndPrint env@(Env (('-', pos) : os) (rhs : lhs : ds) _) =
+  env {operators = os, operands = mkSub pos lhs rhs : ds}
+popAndPrint env@(Env (('/', pos) : os) (rhs : lhs : ds) _) =
+  env {operators = os, operands = mkDiv pos lhs rhs : ds}
+popAndPrint env@(Env (('*', pos) : os) (rhs : lhs : ds) _) =
+  env {operators = os, operands = mkMul pos lhs rhs : ds}
+popAndPrint env@(Env ((' ', pos) : os) (rhs : lhs : ds) _) =
+  env {operators = os, operands = mkApplication pos lhs rhs : ds}
 popAndPrint (Env os ds _) =
   error $ printf "unhandled case: %n %n" (length os) (length ds)
 
@@ -198,7 +202,8 @@ parseBracket env =
 parseLambda :: Env -> Parser Expression
 parseLambda env =
   mkLambda
-    <$> (expect 'λ' *> optional spaces *> name)
+    <$> parserPos
+    <*> (expect 'λ' *> optional spaces *> name)
     <*> ( optional spaces *> expect '.' *> optional spaces
             *> parseExpr
               env
@@ -207,15 +212,15 @@ parseLambda env =
         )
 
 parseApp :: Env -> Expression -> Parser Expression
-parseApp env expr = mkApplication expr <$> (optional spaces *> parseExpr env)
+parseApp env expr = mkApplication <$> parserPos <*> return expr <*> (optional spaces *> parseExpr env)
 
 parseVariable :: Parser Expression
-parseVariable = mkVariable <$> name
+parseVariable = mkVariable <$> parserPos <*> name
 
 curPrec :: OpStack -> Int
 curPrec [] = -1
-curPrec (op : _) = precedence op
+curPrec ((op, _) : _) = precedence op
 
 curAssocLeft :: OpStack -> Bool
 curAssocLeft [] = False
-curAssocLeft (op : _) = isLeftAssoc op
+curAssocLeft ((op, _) : _) = isLeftAssoc op

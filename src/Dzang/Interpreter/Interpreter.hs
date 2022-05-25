@@ -121,16 +121,16 @@ debugLog = gets typeEnvironment >>= log' >> gets valueEnvironment >>= log'
 
 -- Interpreter evaluating simple expressions.
 eval :: Monad m => Expression -> Interpreter m Value
-eval (Fix (Add lhs rhs)) = evalWithPrimitive evalAdd lhs rhs
-eval (Fix (Sub lhs rhs)) = evalWithPrimitive evalSub lhs rhs
-eval (Fix (Mul lhs rhs)) = evalWithPrimitive evalMul lhs rhs
-eval (Fix (Div lhs rhs)) = evalWithPrimitive evalDiv lhs rhs
-eval (Fix (Literal lit)) = evalLiteral lit
-eval app@(Fix (Application _ _)) = evalApplication [] app
-eval (Fix (Variable vname)) = evalVariable vname
-eval (Fix (Lambda vname expr)) = evalLambda vname expr
-eval (Fix (Module _ _)) = throwError $ EE "modules not supported (yet)"
-eval (Fix (Definition n expr)) = evalDefinition n expr
+eval (Fix (Add _ lhs rhs)) = evalWithPrimitive evalAdd lhs rhs
+eval (Fix (Sub _ lhs rhs)) = evalWithPrimitive evalSub lhs rhs
+eval (Fix (Mul _ lhs rhs)) = evalWithPrimitive evalMul lhs rhs
+eval (Fix (Div _ lhs rhs)) = evalWithPrimitive evalDiv lhs rhs
+eval (Fix (Literal _ lit)) = evalLiteral lit
+eval app@(Fix Application {}) = evalApplication [] app
+eval (Fix (Variable _ vname)) = evalVariable vname
+eval (Fix (Lambda _ vname expr)) = evalLambda vname expr
+eval (Fix Module {}) = throwError $ EE "modules not supported (yet)"
+eval (Fix (Definition _ n expr)) = evalDefinition n expr
 
 evalWithPrimitive ::
   Monad m =>
@@ -174,17 +174,18 @@ evalLambda :: Monad m => Name -> Expression -> Interpreter m Value
 evalLambda _ = eval
 
 evalApplication :: Monad m => [Expression] -> Expression -> Interpreter m Value
-evalApplication ps (Fix (Application body arg)) = evalApplication (arg : ps) body
-evalApplication (p : ps) (Fix (Lambda v body)) = replace v p body >>= evalApplication ps
-evalApplication ps (Fix (Variable n)) =
+evalApplication ps (Fix (Application _ body arg)) = evalApplication (arg : ps) body
+evalApplication (p : ps) (Fix (Lambda _ v body)) = replace v p body >>= evalApplication ps
+evalApplication ps (Fix (Variable _ n)) =
   gets (lookup n . valueEnvironment) >>= \case
     Just e -> evalApplication ps e
     _ -> throwError $ EE "applying arguments to function"
 evalApplication [] e = eval e
 evalApplication _ _ = throwError $ EE "applying arguments to function"
 
+-- TODO: Probably do not need the position here.
 evalDefinition :: Monad m => Name -> Expression -> Interpreter m Value
-evalDefinition n expr = addToValueEnv (n, expr) >> return (VFun . mkVariable $ n)
+evalDefinition n expr = addToValueEnv (n, expr) >> return (VFun . mkVariable (0, 0) $ n)
 
 addToValueEnv :: Monad m => (Name, Expression) -> Interpreter m ()
 addToValueEnv i =
@@ -195,5 +196,5 @@ addToValueEnv i =
 replace :: Monad m => Name -> Expression -> Expression -> Interpreter m Expression
 replace n e = return . cata alg
   where
-    alg (Variable n') | n == n' = e
+    alg (Variable _ n') | n == n' = e
     alg a = Fix a

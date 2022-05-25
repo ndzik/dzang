@@ -11,17 +11,20 @@ import Test.Hspec
   )
 import Test.Hspec.Expectations.Pretty
 
+defPos :: (Int, Int)
+defPos = (0,0)
+
 spec :: Spec
 spec = describe "Dzang TypeChecker" $ do
   it "resolves correct types" $ do
-    runTypeChecker [] (litInt 10) `shouldBe` Right (PType int)
-    runTypeChecker [] (mkLambda "x" (mkAdd (mkVariable "x") (litInt 1)))
+    runTypeChecker [] (litInt defPos 10) `shouldBe` Right (PType int)
+    runTypeChecker [] (mkLambda defPos "x" (mkAdd defPos (mkVariable defPos "x") (litInt defPos 1)))
       `shouldBe` Right (PType (int :-> int))
     runTypeChecker
       []
-      (mkApplication (mkLambda "x" (mkAdd (mkVariable "x") (litInt 1))) (litInt 2))
+      (mkApplication defPos (mkLambda defPos "x" (mkAdd defPos (mkVariable defPos "x") (litInt defPos 1))) (litInt defPos 2))
       `shouldBe` Right (PType int)
-    runTypeChecker [] (mkLambda "x" (mkLambda "y" (mkVariable "x")))
+    runTypeChecker [] (mkLambda defPos "x" (mkLambda defPos "y" (mkVariable defPos "x")))
       `shouldBe` Right
         ( ForAll
             [TypeVar "a", TypeVar "b"]
@@ -29,16 +32,16 @@ spec = describe "Dzang TypeChecker" $ do
         )
     runTypeChecker
       []
-      (mkLambda "x" (mkLambda "y" (mkAdd (mkVariable "x") (mkVariable "y"))))
+      (mkLambda defPos "x" (mkLambda defPos "y" (mkAdd defPos (mkVariable defPos "x") (mkVariable defPos "y"))))
       `shouldBe` Right (PType (int :-> (int :-> int)))
   it "rejects ill-typed expressions" testErrors
   it "updates TypingEnv" $ do
-    runTypeChecker' [] (mkDefinition "a" (litInt 1))
+    runTypeChecker' [] (mkDefinition defPos "a" (litInt defPos 1))
       `shouldBe` Right (PType int, [("a", PType int)])
 
 testErrors :: Expectation
 testErrors = do
-  runTypeChecker [] (mkLambda "x" (mkApplication (mkVariable "x") (mkVariable "x")))
+  runTypeChecker [] (mkLambda defPos "x" (mkApplication defPos (mkVariable defPos "x") (mkVariable defPos "x")))
     `shouldBe` Left
       ( InfiniteTypeError
           (TypeVar "a1")
@@ -46,5 +49,5 @@ testErrors = do
       )
   runTypeChecker
     []
-    (mkApplication (mkLambda "x" (mkAdd (mkVariable "x") (litBool True))) (litInt 2))
+    (mkApplication defPos (mkLambda defPos "x" (mkAdd defPos (mkVariable defPos "x") (litBool defPos True))) (litInt defPos 2))
     `shouldBe` Left (MismatchedTypesError int bool)
