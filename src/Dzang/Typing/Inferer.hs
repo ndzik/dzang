@@ -72,7 +72,6 @@ infer expr = case expr of
   Fix (Lambda _ n e) -> inferLambda n e
   Fix (Application _ e1 e2) -> inferApplication e1 e2
   Fix (Literal _ lit) -> inferLiteral lit
-  m@(Fix Module {}) -> throwError $ UnsupportedExprError m
   Fix (Definition _ n e) -> inferDefinition n e
   Fix (Add _ lhs rhs) -> inferOperator AddOp lhs rhs
   Fix (Sub _ lhs rhs) -> inferOperator SubOp lhs rhs

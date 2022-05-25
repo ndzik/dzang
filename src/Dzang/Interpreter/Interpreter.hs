@@ -129,7 +129,6 @@ eval (Fix (Literal _ lit)) = evalLiteral lit
 eval app@(Fix Application {}) = evalApplication [] app
 eval (Fix (Variable _ vname)) = evalVariable vname
 eval (Fix (Lambda _ vname expr)) = evalLambda vname expr
-eval (Fix Module {}) = throwError $ EE "modules not supported (yet)"
 eval (Fix (Definition _ n expr)) = evalDefinition n expr
 
 evalWithPrimitive ::

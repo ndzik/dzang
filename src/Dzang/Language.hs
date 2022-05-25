@@ -38,27 +38,6 @@ emptyEnv = Env {operators = [], operands = [], parsingFun = False}
 reserved :: [Name]
 reserved = ["module", "where"]
 
-parseModule :: Parser Expression
-parseModule =
-  name >>= \case
-    "module" -> parseModuleKey
-    _ -> parserFail "expecting module to start with module header declaration"
-  where
-    eval' :: Parser [(Name, Expression)]
-    eval' = return []
-    parseModuleKey :: Parser Expression
-    parseModuleKey =
-      mkModule
-        <$> (optional spaces *> name)
-        <*> (optional spaces *> parseWhere *> eval')
-    parseWhere :: Parser [(Name, Expression)]
-    parseWhere =
-      name >>= \case
-        "where" -> eval'
-        res ->
-          parserFail $
-            printf "expecting 'where' to close module definition got: %s" res
-
 parseDef :: Env -> Parser Expression
 parseDef env =
   mkDefinition
