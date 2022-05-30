@@ -1,21 +1,29 @@
 module Dzang.Test.Project where
 
 import Control.Monad.Writer
-import Dzang.Project
+import Dzang.Project.Project
+import System.IO.Temp
 
-newtype TestProject = TestProject String deriving (Show)
+data TestProject = TestProject String String deriving (Show)
 
 instance Semigroup TestProject where
-  TestProject p1 <> TestProject p2 = TestProject $ unlines [p1, p2]
+  (TestProject n p1) <> (TestProject _ p2) = TestProject n $ unlines [p1, p2]
 
 instance Monoid TestProject where
-  mempty = TestProject ""
+  mempty = TestProject "" ""
 
 instance ModuleRef TestProject where
-  content (TestProject s) = s
+  content (TestProject _ s) = s
 
-mkMod :: Writer TestProject () -> TestProject
-mkMod = execWriter
+mkMod :: String -> Writer TestProject () -> TestProject
+mkMod _ = execWriter
 
 tt :: String -> Writer TestProject ()
-tt = tell . TestProject
+tt = tell . TestProject ""
+
+withTestModules :: [TestProject] -> (FilePath -> IO ()) -> IO ()
+withTestModules ps action = withSystemTempDirectory "dzang-example" callback
+  where
+    callback pd = do
+      mapM_ (\(TestProject n c) -> writeTempFile pd (n <> ".dzang") c) ps
+      action pd

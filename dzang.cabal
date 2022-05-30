@@ -28,7 +28,8 @@ library
   exposed-modules:     Dzang
                      , Dzang.Language
                      , Dzang.AST
-                     , Dzang.Project
+                     , Dzang.Project.Project
+                     , Dzang.Project.File
                      , Dzang.Interpreter.Interpreter
                      , Dzang.Interpreter.Error
                      , Dzang.Typing.TypeChecker
@@ -84,7 +85,9 @@ test-suite dzang-test
                     , dzarser
                     , template-haskell
                     , random >= 1.2.0
+                    , temporary
                     , text
                     , time
                     , mtl
+                    , directory
   build-tool-depends: hspec-discover:hspec-discover == 2.*

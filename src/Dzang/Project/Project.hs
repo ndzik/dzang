@@ -1,8 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Dzang.Project where
+module Dzang.Project.Project where
 
-import Control.Applicative ((<|>))
 import Dzang.AST
 import Dzang.Language
 import Dzarser.Base
